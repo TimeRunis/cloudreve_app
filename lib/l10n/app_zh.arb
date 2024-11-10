@@ -1,0 +1,91 @@
+{
+  "@@locale": "zh",
+  "mainPageTitle": "TimeRunisの云",
+  "@mainPageTitle": {
+    "description": "app主页名"
+  },
+  "loginPageTitle": "登录",
+  "@login_page_title": {
+    "description": "app主页名"
+  },
+  "myFiles": "我的文件",
+  "@myFiles": {
+    "description": "用户的文件"
+  },
+  "fileTypeVideo": "视频",
+  "@fileTypeVideo": {
+    "description": "视频分类"
+  },
+  "fileTypePicture": "图片",
+  "@fileTypePicture": {
+    "description": "图片分类"
+  },
+  "fileTypeMusic": "音乐",
+  "@fileTypeMusic": {
+    "description": "音乐分类"
+  },
+  "fileTypeDocument": "文档",
+  "@fileTypeDocument": {
+    "description": "文档分类"
+  },
+  "myShares": "我的分享",
+  "@myShares": {
+    "description": "用户的分享"
+  },
+  "offlineDownload": "离线下载",
+  "@offlineDownload": {
+    "description": "离线下载"
+  },
+  "connections": "链接",
+  "@connections": {
+    "description": "链接"
+  },
+  "processQueue": "任务队列",
+  "@processQueue": {
+    "description": "任务队列"
+  },
+  "settings": "个人设置",
+  "@settings": {
+    "description": "用户的设置"
+  },
+  "logout": "退出登录",
+  "@logout": {
+    "description": "登出"
+  },
+  "email": "邮箱",
+  "@email": {
+    "description": "邮箱"
+  },
+  "password": "密码",
+  "@password": {
+    "description": "密码"
+  },
+  "invalid": "无效",
+  "@invalid": {
+    "description": "无效"
+  },
+  "invalidEmail": "无效的邮箱",
+  "@invalidEmail": {
+    "description": "邮箱无效"
+  },
+  "tipTitle": "提示",
+  "@tipTitle": {
+    "description": "提示"
+  },
+  "submitting": "正在提交...",
+  "@submitting": {
+    "description": "正在提交的提示"
+  },
+  "loginSuccess": "登录成功",
+  "@loginSuccess": {
+    "description": "登录成功"
+  },
+  "logoutSuccess": "登出成功",
+  "@logoutSuccess": {
+    "description": "登出成功"
+  },
+  "confirmExit": "再按一次返回键退出",
+  "@confirmExit": {
+    "description": "再按一次返回键退出"
+  }
+}

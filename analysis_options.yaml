@@ -1,0 +1,4 @@
+analyzer: 
+  errors:
+    avoid_print: ignore
+    depend_on_referenced_packages: ignore

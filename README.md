@@ -1,2 +1,3 @@
 # cloudreve_app
-基于cloudreve项目制作的app
+
+A Flutter app for Cloudreve.
