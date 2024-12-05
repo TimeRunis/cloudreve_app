@@ -4,6 +4,7 @@ import 'package:cloudreve_view/common/util.dart';
 import 'package:cloudreve_view/controller.dart';
 import 'package:cloudreve_view/entity/file.dart';
 import 'package:cloudreve_view/page/preview_pic_page.dart';
+import 'package:cloudreve_view/page/preview_video_page.dart';
 import 'package:cloudreve_view/widget/file/file_grid_view.dart';
 import 'package:cloudreve_view/widget/common/main_drawser.dart';
 import 'package:flutter/material.dart';
@@ -90,7 +91,7 @@ class _MainPageState extends State<MainPage> {
                     return Expanded(
                         child: FileGridView(
                       fileList: fileList,
-                      onTap: (File file) {
+                      onDoubleTap: (File file) {
                         if (file.type == Constants.fileType["dir"]) {
                           setState(() {
                             goPath(file.name);
@@ -106,6 +107,13 @@ class _MainPageState extends State<MainPage> {
                                       currentIndex: index,
                                     )),
                           );
+                        }else if (Constants.canPreVideoSet
+                            .contains(file.name.split(".").last)) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => PreviewVideoPage(file: file,)),
+                          );
                         }
                       },
                     ));
@@ -118,7 +126,6 @@ class _MainPageState extends State<MainPage> {
                       ),
                     ),
                   );
-                  ;
                 })
           ],
         ),

@@ -40,7 +40,7 @@ class File {
       path: path ?? this.path,
       thumb: thumb ?? this.thumb,
       size: size ?? this.size,
-      type: type ?? this.type,
+      type: type,
       date: date ?? this.date,
       create_date: create_date ?? this.create_date,
       source_enabled: source_enabled ?? this.source_enabled,

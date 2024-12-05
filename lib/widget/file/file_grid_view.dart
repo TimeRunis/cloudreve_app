@@ -6,14 +6,16 @@ import 'package:flutter/material.dart';
 class FileGridView extends StatelessWidget {
   final List<File> fileList;
   final Function onTap;
+  final Function onDoubleTap;
 
   const FileGridView({
     Key? key,
     required this.fileList,
-    this.onTap=_voidFunction
+    this.onTap=_voidFunction,
+    this.onDoubleTap = _voidFunction
   }) : super(key: key);
 
-  static void _voidFunction(){}
+  static void _voidFunction(File file){}
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +26,7 @@ class FileGridView extends StatelessWidget {
         itemBuilder: (context, index) {
           return Padding(
             padding: const EdgeInsets.all(6.0),
-            child: FileGridCard(file: fileList[index],onTap: onTap,),
+            child: FileGridCard(file: fileList[index],onTap: onTap,onDoubleTap: onDoubleTap,),
           );
         });
   }

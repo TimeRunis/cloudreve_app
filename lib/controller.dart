@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cloudreve_view/common/constants.dart';
 import 'package:cloudreve_view/entity/user.dart';
 import 'package:flutter/material.dart';

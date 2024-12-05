@@ -119,7 +119,8 @@ class Api {
       return response.realUri.toString();
     } catch (e) {
       // 捕获并处理异常
-      throw Exception('Error: $e');
+      print(e);
+      return "";
     }
   }
 }

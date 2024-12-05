@@ -21,5 +21,7 @@
   "submitting": "Submitting...",
   "loginSuccess": "Login succeed",
   "logoutSuccess": "Logou succeed",
-  "confirmExit": "Press the back again to exit"
+  "confirmExit": "Press the back again to exit",
+  "parsingLink": "Parsing link",
+  "videoLoading": "Video Loading"
 }

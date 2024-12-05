@@ -1,7 +1,6 @@
 import 'package:cloudreve_view/common/api.dart';
 import 'package:cloudreve_view/common/util.dart';
 import 'package:cloudreve_view/controller.dart';
-import 'package:cloudreve_view/entity/user.dart';
 import 'package:cloudreve_view/widget/common/theme_change_btn.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

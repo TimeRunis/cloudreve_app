@@ -18,4 +18,10 @@ abstract class Constants {
   static Set<String> canPrePicSet = {
     "png","jpg","jpeg","gif","webp"
   };
+
+  // 可预览的视频后缀
+  static Set<String> canPreVideoSet = {
+    "mp4","avi"
+  };
+  
 }

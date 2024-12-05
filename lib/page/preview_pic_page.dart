@@ -84,7 +84,14 @@ class _PreviewPicPageState extends State<PreviewPicPage> {
                             map[widget.list[index].id]!)
                         : const AssetImage('assets/images/pic.png')
                             as ImageProvider,
-                    // imageProvider: CachedNetworkImageProvider(ApiConfig.filePreveiewBaseUrl+widget.list[index].id),
+                    // imageProvider: FadeInImage(
+                    //   image: NetworkImage(ApiConfig.filePreveiewBaseUrl +
+                    //       widget.list[index].id),
+                    //   imageErrorBuilder: (context, error, stackTrace) {
+                    //     return Icon(Icons.error);
+                    //   },
+                    //   placeholder: AssetImage('assets/images/pic.png'),
+                    // ).image,
                     minScale: PhotoViewComputedScale.contained * 0.8,
                     maxScale: PhotoViewComputedScale.covered * 2,
                     onTapUp: (context, details, controllerValue) {
@@ -108,9 +115,12 @@ class _PreviewPicPageState extends State<PreviewPicPage> {
                 backgroundDecoration: const BoxDecoration(color: Colors.black)),
           ),
           Container(
-            child: Text(
-              "${widget.list[widget.currentIndex].name}",
-              style: TextStyle(fontSize: 20, color: Colors.white),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: Text(
+                "${widget.list[widget.currentIndex].name}",
+                style: TextStyle(fontSize: 20, color: Colors.white),
+              ),
             ),
           ),
           Container(

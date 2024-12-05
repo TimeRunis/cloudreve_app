@@ -87,5 +87,13 @@
   "confirmExit": "再按一次返回键退出",
   "@confirmExit": {
     "description": "再按一次返回键退出"
+  },
+  "parsingLink": "正在解析链接",
+  "@parsingLink": {
+    "description": "正在解析视频链接"
+  },
+  "videoLoading": "正在加载视频",
+  "@VideoLoading": {
+    "description": "正在加载视频"
   }
 }
