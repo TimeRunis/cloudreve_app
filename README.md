@@ -3,20 +3,19 @@
 一款基于 [Cloureve](https://github.com/cloudreve/Cloudreve) 项目的App
 目前拥有的功能
 
-登录注销
+##1.登录注销
 
-大图标文件列表浏览
+##2.大图标文件列表浏览
+<img src="https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview1.gif?raw=true" style="height:300px" />
 
-![preview1.gif](https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview1.gif?raw=true)
+##3.图片类型文件预览
+<img src="https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview2.gif?raw=true" style="height:300px" />
 
-图片类型文件预览
+##4.主题切换
+<img src="https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview3.gif?raw=true" style="height:300px" />
 
-![preview2.gif](https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview2.gif?raw=true)
+##5.国际化
+<img src="https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview4.gif?raw=true" style="height:300px" />
 
-主题切换
-
-![preview3.gif](https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview3.gif?raw=true)
-
-国际化
-
-![preview4.gif](https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview4.gif?raw=true)
+##6.国际化
+<img src="https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview5.gif?raw=true" style="height:300px" />
