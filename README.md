@@ -21,6 +21,6 @@
 
 <img src="https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview4.gif?raw=true" style="height:300px" />
 
-## 6.国际化
+## 6.视频预览
 
 <img src="https://github.com/TimeRunis/cloudreve_app/blob/main/screenshot/preview5.gif?raw=true" style="height:300px" />
