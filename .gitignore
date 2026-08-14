@@ -41,3 +41,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# 参考用的静态 HTML 原型（不参与构建，忽略）
+/style/
+# 原型截图（非真实 App 截图，忽略）
+/screenshot/

@@ -1,37 +1,29 @@
 name: "cloudreve_view"
-description: "secret"
+description: "Cloudreve v4 Flutter client"
 publish_to: 'none'
-version: 0.1.0
+version: 0.2.0
 
 environment:
   sdk: '>=3.4.3 <4.0.0'
 
 dependencies:
-  get: ^4.6.6
-  dio: ^5.7.0
-  shared_preferences: ^2.1.0
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter
-  photo_view: ^0.15.0
-  cached_network_image: ^3.4.0
-
-
+  flutter_riverpod: ^2.5.1
+  dio: ^5.7.0
+  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
+  cached_network_image: ^3.4.1
+  gal: 2.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  # flutter_lints: ^3.0.0
-  build_runner: ^2.1.0
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
 
 flutter:
   uses-material-design: true
-  generate: true
   assets:
     - assets/images/pic.png
     - assets/images/start_bg.gif
-# flutter_intl:
-#   enabled: true
-#   template-arb-file: lib/l10n/app_zh.arb
-#   output-localization-file: lib/l10n/app_localizations.dart
