@@ -37,6 +37,7 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   String _path = '/';
+  FileCategory? _category;
   String _viewMode = 'grid'; // grid | list | gallery
   bool _thumbnails = true;
   int _pageSize = 50;
@@ -47,6 +48,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _enter(FileItem folder) {
     setState(() {
       _path = folder.relativePath;
+      _category = null;
       _selected.clear();
     });
   }
@@ -54,6 +56,16 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _navigateTo(String path) {
     setState(() {
       _path = path;
+      _category = null;
+      _selected.clear();
+    });
+  }
+
+  /// 打开侧边栏分类（图片 / 视频 / 音乐 / 文档）。
+  void _openCategory(FileCategory category) {
+    setState(() {
+      _category = category;
+      _path = '/';
       _selected.clear();
     });
   }
@@ -66,8 +78,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     return segments.isEmpty ? '/' : '/${segments.join('/')}';
   }
 
-  /// 系统返回键：非根目录返回上一级，根目录两次返回退出。
+  /// 系统返回键：分类/非根目录返回上一级，根目录两次返回退出。
   void _handleBackPress() {
+    if (_category != null) {
+      setState(() => _category = null);
+      return;
+    }
     if (_path != '/') {
       _navigateTo(_parentPath(_path));
       return;
@@ -83,7 +99,22 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _refresh() {
-    ref.invalidate(directoryProvider(_path));
+    final category = _category;
+    if (category != null) {
+      ref.invalidate(categoryFilesProvider(category));
+    } else {
+      ref.invalidate(directoryProvider(_path));
+    }
+  }
+
+  /// 当前页面展示的文件列表（普通目录或分类列表）。
+  List<FileItem> _currentFiles() {
+    final category = _category;
+    if (category != null) {
+      return ref.read(categoryFilesProvider(category)).valueOrNull ?? const [];
+    }
+    final listing = ref.read(directoryProvider(_path)).valueOrNull;
+    return listing?.files ?? const <FileItem>[];
   }
 
   void _toggleSelect(FileItem file) {
@@ -122,9 +153,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openImageViewer(FileItem file) {
-    final listing = ref.read(directoryProvider(_path)).valueOrNull;
-    final found =
-        (listing?.files ?? const <FileItem>[]).where(isImage).toList();
+    final found = _currentFiles().where(isImage).toList();
     final images = found.isEmpty ? [file] : found;
     final index = images.indexWhere((f) => f.path == file.path);
     Navigator.of(context).push(
@@ -191,6 +220,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                   _toast('功能暂未实现');
                 },
                 onCycleTheme: _cycleTheme,
+                onCategory: (category) {
+                  Navigator.of(context).pop();
+                  _openCategory(category);
+                },
                 onManageSites: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
@@ -472,11 +505,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  List<FileItem> _selectedItems() {
-    final listing = ref.read(directoryProvider(_path)).valueOrNull;
-    if (listing == null) return const [];
-    return listing.files.where((f) => _selected.contains(f.path)).toList();
-  }
+  List<FileItem> _selectedItems() =>
+      _currentFiles().where((f) => _selected.contains(f.path)).toList();
 
   void _handleFileOperation(FileOperation op) {
     if (op == FileOperation.download) {
@@ -527,7 +557,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
-    final listingAsync = ref.watch(directoryProvider(_path));
     // 只读不订阅：角标区域用 ListenableBuilder 单独订阅，避免主页每秒整体重建。
     final downloadManager = ref.read(downloadManagerProvider).manager;
 
@@ -594,6 +623,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ],
         bottom: _HeaderToolbar(
           path: _path,
+          category: _category,
           onNavigate: _navigateTo,
           onToggleView: _openViewPanel,
           onSort: _openSortMenu,
@@ -601,18 +631,38 @@ class _HomePageState extends ConsumerState<HomePage> {
           onOpenBreadcrumb: _openBreadcrumbPopup,
         ),
       ),
-      body: listingAsync.when(
+      body: _buildBody(),
+    ),
+    );
+  }
+
+  Widget _buildBody() {
+    final category = _category;
+    if (category != null) {
+      final filesAsync = ref.watch(categoryFilesProvider(category));
+      return filesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorView(
           message: e.toString(),
           onRetry: _refresh,
         ),
-        data: (listing) => RefreshIndicator(
+        data: (files) => RefreshIndicator(
           onRefresh: () async => _refresh(),
-          child: _buildListing(listing),
+          child: _buildListing(DirectoryListing(files: files)),
         ),
+      );
+    }
+    final listingAsync = ref.watch(directoryProvider(_path));
+    return listingAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _ErrorView(
+        message: e.toString(),
+        onRetry: _refresh,
       ),
-    ),
+      data: (listing) => RefreshIndicator(
+        onRefresh: () async => _refresh(),
+        child: _buildListing(listing),
+      ),
     );
   }
 
@@ -658,27 +708,21 @@ class _HomePageState extends ConsumerState<HomePage> {
         _toast('固定到侧边栏功能暂未实现');
         break;
       case MoreMenuAction.selectAll:
-        final listing = ref.read(directoryProvider(_path)).valueOrNull;
-        if (listing != null) {
-          setState(() {
-            _selected.addAll(listing.files.map((f) => f.path));
-          });
-        }
+        setState(() {
+          _selected.addAll(_currentFiles().map((f) => f.path));
+        });
         break;
       case MoreMenuAction.deselect:
         setState(() => _selected.clear());
         break;
       case MoreMenuAction.invert:
-        final listing = ref.read(directoryProvider(_path)).valueOrNull;
-        if (listing != null) {
-          final all = listing.files.map((f) => f.path).toSet();
-          final inverted = all.difference(_selected);
-          setState(() {
-            _selected
-              ..clear()
-              ..addAll(inverted);
-          });
-        }
+        final all = _currentFiles().map((f) => f.path).toSet();
+        final inverted = all.difference(_selected);
+        setState(() {
+          _selected
+            ..clear()
+            ..addAll(inverted);
+        });
         break;
     }
   }
@@ -791,9 +835,23 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+IconData _categoryIcon(FileCategory category) {
+  switch (category) {
+    case FileCategory.image:
+      return Icons.image_outlined;
+    case FileCategory.video:
+      return Icons.videocam_outlined;
+    case FileCategory.music:
+      return Icons.music_note_outlined;
+    case FileCategory.doc:
+      return Icons.description_outlined;
+  }
+}
+
 /// 顶部导航栏下方的工具栏：面包屑 + 视图/排序/更多分段按钮组。
 class _HeaderToolbar extends StatelessWidget implements PreferredSizeWidget {
   final String path;
+  final FileCategory? category;
   final ValueChanged<String> onNavigate;
   final VoidCallback onToggleView;
   final VoidCallback onSort;
@@ -802,6 +860,7 @@ class _HeaderToolbar extends StatelessWidget implements PreferredSizeWidget {
 
   const _HeaderToolbar({
     required this.path,
+    this.category,
     required this.onNavigate,
     required this.onToggleView,
     required this.onSort,
@@ -825,6 +884,7 @@ class _HeaderToolbar extends StatelessWidget implements PreferredSizeWidget {
           Expanded(
             child: _Breadcrumb(
               path: path,
+              category: category,
               onNavigate: onNavigate,
               onOpenCurrentPopup: onOpenBreadcrumb,
             ),
@@ -844,11 +904,13 @@ class _HeaderToolbar extends StatelessWidget implements PreferredSizeWidget {
 /// 面包屑：可左右滑动的路径层级，末尾目录带朝下箭头；路径变化后自动滚到最右。
 class _Breadcrumb extends StatefulWidget {
   final String path;
+  final FileCategory? category;
   final ValueChanged<String> onNavigate;
   final VoidCallback onOpenCurrentPopup;
 
   const _Breadcrumb({
     required this.path,
+    this.category,
     required this.onNavigate,
     required this.onOpenCurrentPopup,
   });
@@ -932,17 +994,37 @@ class _BreadcrumbState extends State<_Breadcrumb> {
                 ),
                 onTap: () => widget.onNavigate('/'),
               ),
-              for (int i = 0; i < segments.length; i++) ...[
+              if (widget.category != null) ...[
                 Icon(Icons.chevron_right,
                     size: 16, color: context.appColors.textFaint),
                 _crumb(
-                  _segmentLabel(
-                      _decodeSegment(segments[i]), i == segments.length - 1),
-                  onTap: i == segments.length - 1
-                      ? widget.onOpenCurrentPopup
-                      : () => widget.onNavigate(_pathFor(i)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_categoryIcon(widget.category!),
+                          size: 18, color: context.appColors.textPrimary),
+                      const SizedBox(width: 6),
+                      Text(widget.category!.label,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: context.appColors.textPrimary)),
+                    ],
+                  ),
+                  onTap: null,
                 ),
-              ],
+              ] else
+                for (int i = 0; i < segments.length; i++) ...[
+                  Icon(Icons.chevron_right,
+                      size: 16, color: context.appColors.textFaint),
+                  _crumb(
+                    _segmentLabel(
+                        _decodeSegment(segments[i]), i == segments.length - 1),
+                    onTap: i == segments.length - 1
+                        ? widget.onOpenCurrentPopup
+                        : () => widget.onNavigate(_pathFor(i)),
+                  ),
+                ],
             ],
           ),
         ),

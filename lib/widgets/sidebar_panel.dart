@@ -18,6 +18,7 @@ class SidebarPanel extends ConsumerStatefulWidget {
   final VoidCallback onCycleTheme;
   final VoidCallback onManageSites;
   final VoidCallback? onDownloads;
+  final ValueChanged<FileCategory>? onCategory;
 
   const SidebarPanel({
     super.key,
@@ -27,6 +28,7 @@ class SidebarPanel extends ConsumerStatefulWidget {
     required this.onCycleTheme,
     required this.onManageSites,
     this.onDownloads,
+    this.onCategory,
   });
 
   @override
@@ -105,15 +107,29 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
           ),
         ),
       _SidebarItem(
-          icon: Icons.image_outlined, label: '图片', onTap: widget.onPlaceholder),
+          icon: Icons.image_outlined,
+          label: '图片',
+          onTap: () => widget.onCategory == null
+              ? widget.onPlaceholder()
+              : widget.onCategory!(FileCategory.image)),
       _SidebarItem(
-          icon: Icons.videocam_outlined, label: '视频', onTap: widget.onPlaceholder),
+          icon: Icons.videocam_outlined,
+          label: '视频',
+          onTap: () => widget.onCategory == null
+              ? widget.onPlaceholder()
+              : widget.onCategory!(FileCategory.video)),
       _SidebarItem(
-          icon: Icons.music_note_outlined, label: '音乐', onTap: widget.onPlaceholder),
+          icon: Icons.music_note_outlined,
+          label: '音乐',
+          onTap: () => widget.onCategory == null
+              ? widget.onPlaceholder()
+              : widget.onCategory!(FileCategory.music)),
       _SidebarItem(
           icon: Icons.description_outlined,
           label: '文档',
-          onTap: widget.onPlaceholder),
+          onTap: () => widget.onCategory == null
+              ? widget.onPlaceholder()
+              : widget.onCategory!(FileCategory.doc)),
       _SidebarItem(
           icon: Icons.delete_outline, label: '回收站', onTap: widget.onPlaceholder),
       _SidebarItem(

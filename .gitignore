@@ -46,3 +46,5 @@ app.*.map.json
 /style/
 # 原型截图（非真实 App 截图，忽略）
 /screenshot/
+# 本地 API 参考文档（不提交）
+/docs/
