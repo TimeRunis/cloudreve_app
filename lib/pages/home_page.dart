@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import '../models/user.dart';
+import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/directory_provider.dart';
+import '../providers/download_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/site_config_provider.dart';
 import '../widgets/add_menu_popup.dart';
@@ -20,7 +22,9 @@ import '../widgets/search_popup.dart';
 import '../widgets/sidebar_panel.dart';
 import '../widgets/sort_popup.dart';
 import '../widgets/user_menu_popup.dart';
+import '../widgets/video_player_viewer.dart';
 import '../widgets/view_panel.dart';
+import 'downloads_page.dart';
 import 'site_list_page.dart';
 
 /// 文件浏览主页。
@@ -99,12 +103,22 @@ class _HomePageState extends ConsumerState<HomePage> {
       _enter(file);
     } else if (isImage(file)) {
       _openImageViewer(file);
+    } else if (isVideo(file)) {
+      _openVideoPlayer(file);
     } else {
       showModalBottomSheet(
         context: context,
         builder: (context) => FileInfoSheet(file: file),
       );
     }
+  }
+
+  void _openVideoPlayer(FileItem file) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VideoPlayerViewer(file: file),
+      ),
+    );
   }
 
   void _openImageViewer(FileItem file) {
@@ -183,11 +197,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                     MaterialPageRoute(builder: (_) => const SiteListPage()),
                   );
                 },
+                onDownloads: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DownloadsPage()),
+                  );
+                },
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  void _openDownloads() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const DownloadsPage()),
     );
   }
 
@@ -453,9 +479,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _handleFileOperation(FileOperation op) {
+    if (op == FileOperation.download) {
+      _enqueueDownloads();
+      return;
+    }
     const labels = {
       FileOperation.open: '打开',
-      FileOperation.download: '下载',
       FileOperation.share: '分享',
       FileOperation.rename: '重命名',
       FileOperation.copy: '复制',
@@ -469,10 +498,38 @@ class _HomePageState extends ConsumerState<HomePage> {
     _toast('功能暂未实现：${labels[op]}');
   }
 
+  /// 把当前选中的文件加入下载队列（内部批量获取直链）。
+  Future<void> _enqueueDownloads() async {
+    final selected = _selectedItems();
+    final files = selected.where((f) => !f.isFolder).toList();
+    if (files.isEmpty) {
+      _toast('文件夹打包下载暂不支持');
+      return;
+    }
+    if (files.length != selected.length) {
+      _toast('文件夹打包下载暂不支持，将只下载选中的文件');
+    }
+    try {
+      final count = await ref
+          .read(downloadManagerProvider)
+          .manager
+          .enqueueCloudreveFiles(ref.read(apiProvider), files);
+      if (count > 0) {
+        _clearSelection(); // 加入队列成功后自动退出多选。
+      }
+      _toast(count > 0 ? '已加入下载队列：$count 个任务' : '获取下载链接失败');
+    } catch (e) {
+      print('[HomePage] 加入下载队列失败: $e');
+      _toast('加入下载队列失败');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
     final listingAsync = ref.watch(directoryProvider(_path));
+    // 只读不订阅：角标区域用 ListenableBuilder 单独订阅，避免主页每秒整体重建。
+    final downloadManager = ref.read(downloadManagerProvider).manager;
 
     return PopScope(
       canPop: false,
@@ -493,17 +550,31 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         actions: _selected.isEmpty
             ? [
-                IconButton(
+                ListenableBuilder(
+                  listenable: downloadManager,
+                  builder: (context, _) => _AppBarIconButton(
+                    icon: Icons.download_outlined,
+                    tooltip: '下载',
+                    badgeCount: downloadManager.activeCount,
+                    onPressed: _openDownloads,
+                  ),
+                ),
+                _AppBarIconButton(
+                  icon: Icons.search,
                   tooltip: '搜索',
-                  icon: Icon(Icons.search, color: context.appColors.textPrimary),
                   onPressed: _openSearch,
                 ),
-                IconButton(
+                _AppBarIconButton(
+                  icon: Icons.add,
                   tooltip: '添加',
-                  icon: Icon(Icons.add, color: context.appColors.textPrimary),
                   onPressed: _openAddMenu,
                 ),
-                _UserAvatar(user: user, onTap: _openUserMenu),
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child:
+                      Center(child: _UserAvatar(user: user, onTap: _openUserMenu)),
+                ),
                 const SizedBox(width: 8),
               ]
             : [
@@ -816,6 +887,15 @@ class _BreadcrumbState extends State<_Breadcrumb> {
   String _pathFor(int index) =>
       '/${_segments.sublist(0, index + 1).join('/')}';
 
+  /// 面包屑显示用：URL 解码目录名（不改动内部路径）。
+  String _decodeSegment(String s) {
+    try {
+      return Uri.decodeComponent(s);
+    } catch (_) {
+      return s;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final segments = _segments;
@@ -856,7 +936,8 @@ class _BreadcrumbState extends State<_Breadcrumb> {
                 Icon(Icons.chevron_right,
                     size: 16, color: context.appColors.textFaint),
                 _crumb(
-                  _segmentLabel(segments[i], i == segments.length - 1),
+                  _segmentLabel(
+                      _decodeSegment(segments[i]), i == segments.length - 1),
                   onTap: i == segments.length - 1
                       ? widget.onOpenCurrentPopup
                       : () => widget.onNavigate(_pathFor(i)),
@@ -1104,36 +1185,106 @@ class _SelectionActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        IconButton(
-          tooltip: tooltip,
-          icon: Icon(icon, color: context.appColors.textPrimary),
-          onPressed: onPressed,
-        ),
-        Positioned(
-          top: 4,
-          right: 4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-            decoration: BoxDecoration(
-              color: scheme.primary,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '$count',
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            tooltip: tooltip,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+            icon: Icon(icon,
+                size: 22, color: context.appColors.textPrimary),
+            onPressed: onPressed,
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 导航栏图标按钮：固定 44x44，与头像等其他 actions 对齐；可带数量角标。
+class _AppBarIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final int badgeCount;
+
+  const _AppBarIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.badgeCount = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            tooltip: tooltip,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+            icon: Icon(icon,
+                size: 22, color: context.appColors.textPrimary),
+            onPressed: onPressed,
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                constraints:
+                    const BoxConstraints(minWidth: 18, minHeight: 18),
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

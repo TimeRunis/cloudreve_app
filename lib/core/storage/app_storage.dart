@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../models/download_task.dart';
 import '../../models/site.dart';
 import '../../models/user.dart';
 
@@ -14,6 +15,9 @@ class AppStorage {
   static const _kSites = 'sites';
   static const _kCurrentSiteId = 'current_site_id';
   static const _kThemeMode = 'theme_mode';
+  static const _kMultiThreadDownload = 'multi_thread_download';
+  static const _kDownloadThreadCount = 'download_thread_count';
+  static const _kDownloadTasks = 'download_tasks';
 
   AppStorage(this._prefs, this._secure);
 
@@ -47,6 +51,35 @@ class AppStorage {
 
   Future<void> setCurrentSiteId(String? id) =>
       id == null ? _prefs.remove(_kCurrentSiteId) : _prefs.setString(_kCurrentSiteId, id);
+
+  // ---------- 下载设置 ----------
+  bool getMultiThreadDownload() => _prefs.getBool(_kMultiThreadDownload) ?? false;
+
+  Future<void> setMultiThreadDownload(bool enabled) =>
+      _prefs.setBool(_kMultiThreadDownload, enabled);
+
+  int getDownloadThreadCount() => _prefs.getInt(_kDownloadThreadCount) ?? 4;
+
+  Future<void> setDownloadThreadCount(int count) =>
+      _prefs.setInt(_kDownloadThreadCount, count);
+
+  // ---------- 下载任务 ----------
+  List<DownloadTask> getDownloadTasks() {
+    final raw = _prefs.getString(_kDownloadTasks);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final data = jsonDecode(raw) as List<dynamic>;
+      return data
+          .map((e) => DownloadTask.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> saveDownloadTasks(List<DownloadTask> tasks) => _prefs.setString(
+      _kDownloadTasks,
+      jsonEncode(tasks.map((e) => e.toJson()).toList()));
 
   // ---------- 令牌（安全存储） ----------
   String _tokenKey(String siteId) => 'site.$siteId.token';

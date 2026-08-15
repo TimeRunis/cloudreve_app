@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/app_events.dart';
 import 'core/network/tls_override.dart';
 import 'core/storage/app_storage.dart';
 import 'core/theme/app_theme.dart';
@@ -13,6 +14,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   installTlsTrustOverride();
   final storage = await AppStorage.create();
+  await AppEventBus.init();
   runApp(ProviderScope(
     overrides: [storageProvider.overrideWithValue(storage)],
     child: const CloudreveApp(),

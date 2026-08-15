@@ -1,18 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_events.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sites_provider.dart';
+import 'downloads_page.dart';
 import 'home_page.dart';
 import 'login_page.dart';
 import 'site_edit_page.dart';
 
 /// 根页面：根据「是否配置站点 / 是否已登录」决定展示哪个页面。
-class RootPage extends ConsumerWidget {
+///
+/// 同时监听应用级原生事件（目前是通知栏点击打开下载页）。
+class RootPage extends ConsumerStatefulWidget {
   const RootPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RootPage> createState() => _RootPageState();
+}
+
+class _RootPageState extends ConsumerState<RootPage> {
+  @override
+  void initState() {
+    super.initState();
+    AppEventBus.addListener(_onAppEvent);
+    // 冷启动：点击通知打开 App 时，直接跳转下载页。
+    if (AppEventBus.consumePendingOpenDownloads()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openDownloads();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    AppEventBus.removeListener(_onAppEvent);
+    super.dispose();
+  }
+
+  void _onAppEvent(String event) {
+    if (event == 'open_downloads' && mounted) {
+      _openDownloads();
+    }
+  }
+
+  void _openDownloads() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const DownloadsPage()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final sites = ref.watch(sitesProvider);
     final auth = ref.watch(authProvider);
 

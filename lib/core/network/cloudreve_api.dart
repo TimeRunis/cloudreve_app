@@ -205,4 +205,28 @@ class CloudreveApi {
     if (data is String) return data;
     return null;
   }
+
+  /// 批量创建源文件下载直链；返回与 [uris] 顺序对应的 url 列表。
+  Future<List<String>> getFileSourceUrls(List<String> uris) async {
+    if (uris.isEmpty) return const [];
+    final data = await _post('file/url', data: {'uris': uris});
+    final result = <String>[];
+    if (data is Map) {
+      final urls = data['urls'];
+      if (urls is List) {
+        for (final item in urls) {
+          if (item is Map && item['url'] is String) {
+            final url = item['url'] as String;
+            if (url.isNotEmpty) result.add(url);
+          } else if (item is String && item.isNotEmpty) {
+            result.add(item);
+          }
+        }
+      }
+    }
+    if (result.isEmpty && data is String && data.isNotEmpty) {
+      return [data];
+    }
+    return result;
+  }
 }

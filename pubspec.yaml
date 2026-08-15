@@ -15,6 +15,13 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   cached_network_image: ^3.4.1
   gal: 2.2.1
+  video_player: ^2.9.2
+  path_provider: ^2.1.4
+  open_filex: ^4.5.0
+  video_thumbnail: ^0.5.3
+  wakelock_plus: ^1.2.8
+  # 锁定 8.x：9.x 与当前 Flutter 3.24 的 Gradle 插件不兼容
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:

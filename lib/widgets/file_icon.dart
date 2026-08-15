@@ -19,10 +19,27 @@ bool isImage(FileItem f) {
   return _isImage(f.name.toLowerCase());
 }
 
+/// 是否为视频文件（用于视频播放）。
+bool isVideo(FileItem f) {
+  if (f.isFolder) return false;
+  return _isVideo(f.name.toLowerCase());
+}
+
+/// 文件名是否为图片（用于本地缩略图）。
+bool isImageFileName(String name) => _isImage(name.toLowerCase());
+
+/// 文件名是否为视频（用于本地缩略图）。
+bool isVideoFileName(String name) => _isVideo(name.toLowerCase());
+
 /// 根据文件名返回合适的图标。
 IconData fileIcon(FileItem f) {
   if (f.isFolder) return Icons.folder;
-  final name = f.name.toLowerCase();
+  return fileIconForName(f.name);
+}
+
+/// 根据文件名（含扩展名）返回合适的图标。
+IconData fileIconForName(String fileName) {
+  final name = fileName.toLowerCase();
   if (name.endsWith('.mp4') ||
       name.endsWith('.mkv') ||
       name.endsWith('.avi') ||

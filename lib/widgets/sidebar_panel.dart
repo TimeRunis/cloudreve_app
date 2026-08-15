@@ -17,6 +17,7 @@ class SidebarPanel extends ConsumerStatefulWidget {
   final VoidCallback onPlaceholder;
   final VoidCallback onCycleTheme;
   final VoidCallback onManageSites;
+  final VoidCallback? onDownloads;
 
   const SidebarPanel({
     super.key,
@@ -25,6 +26,7 @@ class SidebarPanel extends ConsumerStatefulWidget {
     required this.onPlaceholder,
     required this.onCycleTheme,
     required this.onManageSites,
+    this.onDownloads,
   });
 
   @override
@@ -121,9 +123,9 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
           label: '连接与挂载',
           onTap: widget.onPlaceholder),
       _SidebarItem(
-          icon: Icons.settings_outlined,
-          label: '后台任务',
-          onTap: widget.onPlaceholder),
+          icon: Icons.download_outlined,
+          label: '下载任务',
+          onTap: widget.onDownloads ?? widget.onPlaceholder),
       Divider(height: 1, color: context.appColors.border),
       _SidebarItem(
           icon: Icons.brightness_6_outlined,
