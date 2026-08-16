@@ -585,11 +585,14 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
     );
   }
 
-  /// 横屏沉浸式全屏：视频居中，控制层铺满整个屏幕。
+  /// 横屏沉浸式全屏：视频居中，控制层铺满整个屏幕；
+  /// 另加一层铺满黑边的手势层，保证黑边区域也能滑动 / 点击。
   Widget _buildFullscreen() {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // 黑边手势层：Center 未命中的区域（上下/左右黑边）也能操作。
+        _buildGestureLayer(),
         Center(child: _buildVideoSurface()),
         _buildControls(),
       ],

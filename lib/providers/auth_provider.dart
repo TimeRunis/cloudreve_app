@@ -49,15 +49,25 @@ class AuthNotifier extends Notifier<AuthState> {
 
   /// 登录成功后保存令牌与用户。
   Future<void> signIn(Site site, TokenPair token, User user) async {
-    state = AuthState(token: token, user: user);
-    await ref.read(storageProvider).saveToken(site.id, token);
+    final stamped = _stampToken(token);
+    state = AuthState(token: stamped, user: user);
+    await ref.read(storageProvider).saveToken(site.id, stamped);
     await ref.read(storageProvider).saveUser(site.id, user);
   }
 
-  Future<void> updateToken(Site site, TokenPair token) async {
-    state = state.copyWith(token: token);
-    await ref.read(storageProvider).saveToken(site.id, token);
+  /// 更新令牌（自动补上获取时间戳），返回带时间戳的令牌。
+  Future<TokenPair> updateToken(Site site, TokenPair token) async {
+    final stamped = _stampToken(token);
+    state = state.copyWith(token: stamped);
+    await ref.read(storageProvider).saveToken(site.id, stamped);
+    return stamped;
   }
+
+  /// 为缺失时间戳的令牌打上当前时间（用于提前刷新判断）。
+  TokenPair _stampToken(TokenPair token) =>
+      token.accessIssuedAt == null
+          ? token.copyWith(accessIssuedAt: DateTime.now())
+          : token;
 
   Future<void> signOut(Site site) async {
     state = const AuthState();

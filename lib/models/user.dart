@@ -81,18 +81,39 @@ class TokenPair {
   final String? accessExpires;
   final String? refreshExpires;
 
+  /// access token 的获取时间（本地记录，用于提前刷新）。
+  final DateTime? accessIssuedAt;
+
   const TokenPair({
     required this.accessToken,
     required this.refreshToken,
     this.accessExpires,
     this.refreshExpires,
+    this.accessIssuedAt,
   });
+
+  TokenPair copyWith({
+    String? accessToken,
+    String? refreshToken,
+    String? accessExpires,
+    String? refreshExpires,
+    DateTime? accessIssuedAt,
+  }) =>
+      TokenPair(
+        accessToken: accessToken ?? this.accessToken,
+        refreshToken: refreshToken ?? this.refreshToken,
+        accessExpires: accessExpires ?? this.accessExpires,
+        refreshExpires: refreshExpires ?? this.refreshExpires,
+        accessIssuedAt: accessIssuedAt ?? this.accessIssuedAt,
+      );
 
   factory TokenPair.fromJson(Map<String, dynamic> json) => TokenPair(
         accessToken: json['access_token'] as String,
         refreshToken: json['refresh_token'] as String,
         accessExpires: json['access_expires'] as String?,
         refreshExpires: json['refresh_expires'] as String?,
+        accessIssuedAt:
+            DateTime.tryParse(json['access_issued_at'] as String? ?? ''),
       );
 
   Map<String, dynamic> toJson() => {
@@ -100,6 +121,7 @@ class TokenPair {
         'refresh_token': refreshToken,
         'access_expires': accessExpires,
         'refresh_expires': refreshExpires,
+        'access_issued_at': accessIssuedAt?.toIso8601String(),
       };
 }
 

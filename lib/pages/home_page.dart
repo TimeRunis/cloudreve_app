@@ -42,13 +42,17 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool _thumbnails = true;
   int _pageSize = 50;
   String _sortKey = 'created_at-asc';
+  String _searchKeyword = '';
   final Set<String> _selected = {};
   DateTime? _lastBackPress;
+
+  bool get _isSearchActive => _searchKeyword.trim().isNotEmpty;
 
   void _enter(FileItem folder) {
     setState(() {
       _path = folder.relativePath;
       _category = null;
+      _searchKeyword = '';
       _selected.clear();
     });
   }
@@ -57,6 +61,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     setState(() {
       _path = path;
       _category = null;
+      _searchKeyword = '';
       _selected.clear();
     });
   }
@@ -66,6 +71,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     setState(() {
       _category = category;
       _path = '/';
+      _searchKeyword = '';
       _selected.clear();
     });
   }
@@ -80,6 +86,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   /// 系统返回键：分类/非根目录返回上一级，根目录两次返回退出。
   void _handleBackPress() {
+    if (_isSearchActive) {
+      setState(() => _searchKeyword = '');
+      return;
+    }
     if (_category != null) {
       setState(() => _category = null);
       return;
@@ -99,7 +109,16 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _refresh() {
+    final keyword = _searchKeyword.trim();
     final category = _category;
+    if (_isSearchActive) {
+      if (category != null) {
+        ref.invalidate(categoryFilesProvider(category));
+      } else {
+        ref.invalidate(searchFilesProvider(keyword));
+      }
+      return;
+    }
     if (category != null) {
       ref.invalidate(categoryFilesProvider(category));
     } else {
@@ -107,14 +126,29 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  /// 当前页面展示的文件列表（普通目录或分类列表）。
+  /// 当前页面展示的文件列表（搜索 / 分类 / 普通目录）。
   List<FileItem> _currentFiles() {
+    final keyword = _searchKeyword.trim();
     final category = _category;
+    if (_isSearchActive) {
+      if (category != null) {
+        final files =
+            ref.read(categoryFilesProvider(category)).valueOrNull ?? const [];
+        return _filterByQuery(files, keyword);
+      }
+      return ref.read(searchFilesProvider(keyword)).valueOrNull ?? const [];
+    }
     if (category != null) {
       return ref.read(categoryFilesProvider(category)).valueOrNull ?? const [];
     }
     final listing = ref.read(directoryProvider(_path)).valueOrNull;
     return listing?.files ?? const <FileItem>[];
+  }
+
+  /// 分类结果内的关键词过滤（原版 Cloudreve 分类视图不支持搜索，这里做本地过滤）。
+  List<FileItem> _filterByQuery(List<FileItem> files, String keyword) {
+    final q = keyword.toLowerCase();
+    return files.where((f) => f.name.toLowerCase().contains(q)).toList();
   }
 
   void _toggleSelect(FileItem file) {
@@ -348,7 +382,12 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: SearchPopup(
                 onSubmitted: (query) {
                   Navigator.of(context).pop();
-                  _toast('搜索功能暂未实现：$query');
+                  final keyword = query.trim();
+                  if (keyword.isEmpty) return;
+                  setState(() {
+                    _searchKeyword = keyword;
+                    _selected.clear();
+                  });
                 },
               ),
             ),
@@ -637,7 +676,35 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildBody() {
+    final keyword = _searchKeyword.trim();
     final category = _category;
+
+    if (_isSearchActive) {
+      if (category != null) {
+        final filesAsync = ref.watch(categoryFilesProvider(category));
+        return filesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => _ErrorView(
+            message: e.toString(),
+            onRetry: _refresh,
+          ),
+          data: (files) => _buildSearchResults(
+            _filterByQuery(files, keyword),
+            keyword: keyword,
+          ),
+        );
+      }
+      final filesAsync = ref.watch(searchFilesProvider(keyword));
+      return filesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => _ErrorView(
+          message: e.toString(),
+          onRetry: _refresh,
+        ),
+        data: (files) => _buildSearchResults(files, keyword: keyword),
+      );
+    }
+
     if (category != null) {
       final filesAsync = ref.watch(categoryFilesProvider(category));
       return filesAsync.when(
@@ -663,6 +730,21 @@ class _HomePageState extends ConsumerState<HomePage> {
         onRefresh: () async => _refresh(),
         child: _buildListing(listing),
       ),
+    );
+  }
+
+  Widget _buildSearchResults(List<FileItem> files, {required String keyword}) {
+    return RefreshIndicator(
+      onRefresh: () async => _refresh(),
+      child: files.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                const SizedBox(height: 80),
+                Center(child: Text('未找到与“$keyword”相关的文件')),
+              ],
+            )
+          : _buildListing(DirectoryListing(files: files)),
     );
   }
 

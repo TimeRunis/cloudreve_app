@@ -58,6 +58,21 @@ final categoryFilesProvider =
   return files;
 });
 
+/// 全局文件搜索（在「我的文件」根目录下按文件名模糊匹配）。
+///
+/// 对应 Cloudreve v4 Web 端搜索请求：
+/// `cloudreve://my/?name=<keyword>&case_folding=`。
+final searchFilesProvider =
+    FutureProvider.family<List<FileItem>, String>((ref, keyword) async {
+  final api = ref.watch(apiProvider);
+  final encoded = Uri.encodeQueryComponent(keyword);
+  final listing = await api.listFiles(
+    'cloudreve://my/?name=$encoded&case_folding=',
+    pageSize: 500,
+  );
+  return listing.files;
+});
+
 /// 存储容量。
 final capacityProvider = FutureProvider<Capacity>((ref) {
   final api = ref.watch(apiProvider);

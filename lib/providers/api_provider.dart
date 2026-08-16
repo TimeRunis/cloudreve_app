@@ -13,5 +13,21 @@ final apiProvider = Provider<CloudreveApi>((ref) {
   final dio = ref.watch(dioProvider);
   final site = ref.watch(currentSiteProvider);
   final token = ref.watch(authProvider).token;
-  return CloudreveApi(dio: dio, site: site, token: token);
+  return CloudreveApi(
+    dio: dio,
+    site: site,
+    token: token,
+    // access token 超过 25 分钟时，每次请求前自动用 refresh_token 换取新令牌。
+    onRefreshToken: (refreshToken) async {
+      final api = CloudreveApi(dio: dio, site: site, token: token);
+      final newPair = await api.refreshToken(refreshToken);
+      final currentSite = ref.read(currentSiteProvider);
+      if (currentSite != null) {
+        return await ref
+            .read(authProvider.notifier)
+            .updateToken(currentSite, newPair);
+      }
+      return newPair;
+    },
+  );
 });

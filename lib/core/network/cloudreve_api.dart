@@ -39,13 +39,29 @@ Dio createDio() => Dio(BaseOptions(
       },
     ));
 
+/// 登录令牌自动刷新回调：传入 refresh_token，返回新的 TokenPair。
+typedef TokenRefresher = Future<TokenPair> Function(String refreshToken);
+
 /// Cloudreve v4 API 客户端（复用全局 Dio 单例，只负责站点相关的运行时配置）。
 class CloudreveApi {
+  /// access token 有效期按 25 分钟提前刷新。
+  static const int accessTokenLifetimeMs = 25 * 60 * 1000;
+
   final Dio dio;
   final Site? site;
   final TokenPair? token;
+  final TokenRefresher? onRefreshToken;
 
-  CloudreveApi({required this.dio, this.site, this.token}) {
+  TokenPair? _currentToken;
+  Future<TokenPair?>? _refreshing;
+
+  CloudreveApi({
+    required this.dio,
+    this.site,
+    this.token,
+    this.onRefreshToken,
+  }) {
+    _currentToken = token;
     dio.options.baseUrl = site == null ? '' : '${site!.apiBase}/';
     if (token != null) {
       dio.options.headers['Authorization'] = 'Bearer ${token!.accessToken}';
@@ -71,22 +87,103 @@ class CloudreveApi {
     }
   }
 
-  Future<dynamic> _get(String path,
-      {Map<String, dynamic>? queryParameters}) async {
+  /// 请求前校验 access token：超过 25 分钟则主动刷新。
+  Future<bool> _ensureFreshToken() async {
+    final current = _currentToken;
+    if (onRefreshToken == null ||
+        current == null ||
+        current.refreshToken.isEmpty) {
+      return false;
+    }
+    final issuedAt = current.accessIssuedAt;
+    final ageMs = issuedAt == null
+        ? accessTokenLifetimeMs + 1
+        : DateTime.now().difference(issuedAt).inMilliseconds;
+    if (ageMs < accessTokenLifetimeMs) {
+      return true;
+    }
+    return await _tryRefresh();
+  }
+
+  /// 401 时用 refresh_token 刷新令牌；并发请求共享同一次刷新。
+  Future<bool> _tryRefresh() async {
+    final refreshToken = _currentToken?.refreshToken;
+    if (onRefreshToken == null ||
+        refreshToken == null ||
+        refreshToken.isEmpty) {
+      return false;
+    }
+    if (_refreshing != null) {
+      final result = await _refreshing;
+      return result != null;
+    }
+    final future = _doRefresh(refreshToken);
+    _refreshing = future;
+    try {
+      final result = await future;
+      return result != null;
+    } finally {
+      _refreshing = null;
+    }
+  }
+
+  Future<TokenPair?> _doRefresh(String refreshToken) async {
+    try {
+      final newPair = await onRefreshToken!(refreshToken);
+      _currentToken = newPair;
+      dio.options.headers['Authorization'] = 'Bearer ${newPair.accessToken}';
+      return newPair;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<dynamic> _get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    bool retryOnUnauthorized = true,
+  }) async {
+    if (retryOnUnauthorized) {
+      await _ensureFreshToken();
+    }
     try {
       final resp = await dio.get<dynamic>(_url(path),
           queryParameters: queryParameters);
       return _unwrap(resp);
+    } on DioException catch (e) {
+      if (retryOnUnauthorized &&
+          e.response?.statusCode == 401 &&
+          await _tryRefresh()) {
+        return _get(path,
+            queryParameters: queryParameters, retryOnUnauthorized: false);
+      }
+      _logError(path, e);
+      throw toApiException(e);
     } catch (e) {
       _logError(path, e);
       throw toApiException(e);
     }
   }
 
-  Future<dynamic> _post(String path, {Object? data}) async {
+  Future<dynamic> _post(
+    String path, {
+    Object? data,
+    bool retryOnUnauthorized = true,
+  }) async {
+    if (retryOnUnauthorized) {
+      await _ensureFreshToken();
+    }
     try {
       final resp = await dio.post<dynamic>(_url(path), data: data);
       return _unwrap(resp);
+    } on DioException catch (e) {
+      if (retryOnUnauthorized &&
+          e.response?.statusCode == 401 &&
+          await _tryRefresh()) {
+        return _post(path, data: data, retryOnUnauthorized: false);
+      }
+      _logError(path, e);
+      throw toApiException(e);
     } catch (e) {
       _logError(path, e);
       throw toApiException(e);
@@ -144,7 +241,7 @@ class CloudreveApi {
 
   Future<TokenPair> refreshToken(String refreshToken) async {
     final data = await _post('session/token/refresh',
-        data: {'refresh_token': refreshToken});
+        data: {'refresh_token': refreshToken}, retryOnUnauthorized: false);
     return TokenPair.fromJson(data as Map<String, dynamic>);
   }
 
