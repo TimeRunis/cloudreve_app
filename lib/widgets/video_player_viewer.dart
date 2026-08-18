@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
+import '../core/network/cloudreve_api.dart';
 import '../models/file_item.dart';
 import '../providers/api_provider.dart';
 
@@ -21,8 +22,9 @@ import '../providers/api_provider.dart';
 /// - 全屏模式下可锁定画面，锁定后仅保留解锁按钮
 class VideoPlayerViewer extends ConsumerStatefulWidget {
   final FileItem file;
+  final CloudreveApi? api;
 
-  const VideoPlayerViewer({super.key, required this.file});
+  const VideoPlayerViewer({super.key, required this.file, this.api});
 
   @override
   ConsumerState<VideoPlayerViewer> createState() => _VideoPlayerViewerState();
@@ -112,7 +114,13 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
     });
 
     try {
-      final api = ref.read(apiProvider);
+      final CloudreveApi api;
+      final provided = widget.api;
+      if (provided != null) {
+        api = provided;
+      } else {
+        api = ref.read(apiProvider);
+      }
       final url = await api.getFileSourceUrl(widget.file.path);
       if (url == null || url.isEmpty) {
         throw Exception('获取视频播放链接失败');

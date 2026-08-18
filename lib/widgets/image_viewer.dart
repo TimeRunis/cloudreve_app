@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
 
+import '../core/network/cloudreve_api.dart';
 import '../models/file_item.dart';
 import '../providers/api_provider.dart';
 import 'file_info_sheet.dart';
@@ -14,11 +15,13 @@ import 'file_info_sheet.dart';
 class ImageViewer extends ConsumerStatefulWidget {
   final List<FileItem> images;
   final int initialIndex;
+  final CloudreveApi? api;
 
   const ImageViewer({
     super.key,
     required this.images,
     required this.initialIndex,
+    this.api,
   });
 
   @override
@@ -47,8 +50,8 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
             controller: _controller,
             itemCount: widget.images.length,
             onPageChanged: (i) => setState(() => _index = i),
-            itemBuilder: (context, i) =>
-                _ImageViewerPage(file: widget.images[i]),
+            itemBuilder: (context, i) => _ImageViewerPage(
+                file: widget.images[i], api: widget.api),
           ),
           SafeArea(
             child: Padding(
@@ -85,13 +88,19 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
   void _showDetail(FileItem file) {
     showModalBottomSheet(
       context: context,
-      builder: (_) => FileInfoSheet(file: file),
+      builder: (_) => FileInfoSheet(file: file, api: widget.api),
     );
   }
 
   Future<void> _download(FileItem file) async {
     try {
-      final api = ref.read(apiProvider);
+      final CloudreveApi api;
+      final provided = widget.api;
+      if (provided != null) {
+        api = provided;
+      } else {
+        api = ref.read(apiProvider);
+      }
       final url = await api.getFileSourceUrl(file.path);
       if (url == null || url.isEmpty) {
         _toast('获取下载链接失败');
@@ -123,8 +132,9 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
 /// 单张图片页：用 dio 下载字节后显示，下载过程展示进度。
 class _ImageViewerPage extends ConsumerStatefulWidget {
   final FileItem file;
+  final CloudreveApi? api;
 
-  const _ImageViewerPage({required this.file});
+  const _ImageViewerPage({required this.file, this.api});
 
   @override
   ConsumerState<_ImageViewerPage> createState() => _ImageViewerPageState();
@@ -143,7 +153,13 @@ class _ImageViewerPageState extends ConsumerState<_ImageViewerPage> {
 
   Future<void> _load() async {
     try {
-      final api = ref.read(apiProvider);
+      final CloudreveApi api;
+      final provided = widget.api;
+      if (provided != null) {
+        api = provided;
+      } else {
+        api = ref.read(apiProvider);
+      }
       final url = await api.getFileSourceUrl(widget.file.path);
       if (url == null || url.isEmpty) {
         print('[ImageViewer] 获取原图链接失败: ${widget.file.path}');

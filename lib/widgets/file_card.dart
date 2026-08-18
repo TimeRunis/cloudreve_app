@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import 'file_icon.dart';
@@ -13,6 +14,7 @@ class FileCard extends StatelessWidget {
   final bool showThumb;
   final VoidCallback onSelect;
   final VoidCallback onOpen;
+  final CloudreveApi? api;
 
   const FileCard({
     super.key,
@@ -21,6 +23,7 @@ class FileCard extends StatelessWidget {
     required this.onSelect,
     required this.onOpen,
     this.showThumb = true,
+    this.api,
   });
 
   @override
@@ -84,7 +87,12 @@ class FileCard extends StatelessWidget {
                     color: context.appColors.surfaceMuted,
                     alignment: Alignment.center,
                     child: showThumb
-                        ? FileThumbnail(file: file, size: 64, fill: true)
+                        ? FileThumbnail(
+                            file: file,
+                            size: 64,
+                            fill: true,
+                            api: api,
+                          )
                         : Icon(fileIcon(file),
                             size: 40, color: fileIconColor(context, file)),
                   ),
@@ -97,6 +105,7 @@ class FileCard extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: onSelect,
+                  onLongPress: onSelect,
                   onDoubleTap: onOpen,
                   child: const SizedBox.expand(),
                 ),

@@ -19,6 +19,7 @@ dependencies:
   path_provider: ^2.1.4
   open_filex: ^4.5.0
   video_thumbnail: ^0.5.3
+  file_picker: ^8.1.2
   wakelock_plus: ^1.2.8
   # 锁定 8.x：9.x 与当前 Flutter 3.24 的 Gradle 插件不兼容
   package_info_plus: ^8.3.0
@@ -28,6 +29,11 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   build_runner: ^2.4.11
+
+# file_picker 传递依赖的高版本 lifecycle 插件声明了 compileSdk 35，
+# 这里固定到 2.0.20（compileSdk 34），避免 Android 工程必须升到 SDK 35。
+dependency_overrides:
+  flutter_plugin_android_lifecycle: 2.0.20
 
 flutter:
   uses-material-design: true

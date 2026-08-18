@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 
 import '../../models/file_item.dart';
+import '../../models/share.dart';
 import '../../models/site.dart';
 import '../../models/site_config.dart';
+import '../../models/upload_task.dart';
 import '../../models/user.dart';
 import 'api_exception.dart';
 import 'tls_override.dart';
@@ -38,6 +40,77 @@ Dio createDio() => Dio(BaseOptions(
         'Content-Type': 'application/json',
       },
     ));
+
+/// 分享根目录 URI：`cloudreve://{shareId}[:password]@share`。
+String shareRootUri(String shareId, {String? password}) {
+  final user = password == null || password.isEmpty
+      ? shareId
+      : '$shareId:$password';
+  return 'cloudreve://$user@share';
+}
+
+/// 分享内文件/文件夹 URI，[path] 为分享根目录下的相对路径（斜杠分隔）。
+String shareUri(String shareId, {String? password, String path = ''}) {
+  final root = shareRootUri(shareId, password: password);
+  if (path.isEmpty || path == '/') return root;
+  final clean = path.startsWith('/') ? path.substring(1) : path;
+  final encoded = clean
+      .split('/')
+      .where((s) => s.isNotEmpty)
+      .map(Uri.encodeComponent)
+      .join('/');
+  return '$root/$encoded';
+}
+
+/// 解析出的分享链接。
+class ParsedShareLink {
+  final String shareId;
+  final String? password;
+
+  const ParsedShareLink({required this.shareId, this.password});
+}
+
+/// 从剪贴板文本中解析某个站点的分享短链（`/s/{id}[/{password}]`）。
+///
+/// 也兼容 `cloudreve://{id}[:password]@share` 形式的 URI。
+ParsedShareLink? parseShareLinkFromText(String text, String siteBaseUrl) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+
+  // 先尝试 cloudreve:// 分享 URI。
+  final uriMatch = RegExp(
+    r'cloudreve://([A-Za-z0-9_-]+)(?::([A-Za-z0-9_-]+))?@share',
+    caseSensitive: false,
+  ).firstMatch(trimmed);
+  if (uriMatch != null) {
+    return ParsedShareLink(
+      shareId: uriMatch.group(1)!,
+      password: uriMatch.group(2),
+    );
+  }
+
+  // 从整段文本中提取第一个完整 URL。
+  final urlMatch = RegExp(r'https?://[^\s<>"]+', caseSensitive: false)
+      .firstMatch(trimmed);
+  final raw = urlMatch?.group(0) ?? trimmed;
+  final uri = Uri.tryParse(raw);
+  if (uri == null) return null;
+
+  final baseUri = Uri.tryParse(siteBaseUrl);
+  if (baseUri == null) return null;
+  final sameHost = uri.host == baseUri.host;
+  final samePort = uri.hasPort
+      ? uri.port == (baseUri.hasPort ? baseUri.port : (baseUri.scheme == 'https' ? 443 : 80))
+      : !baseUri.hasPort;
+  if (!sameHost || !samePort) return null;
+
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  if (segments.length < 2 || segments[0] != 's') return null;
+  return ParsedShareLink(
+    shareId: segments[1],
+    password: segments.length >= 3 ? segments[2] : null,
+  );
+}
 
 /// 登录令牌自动刷新回调：传入 refresh_token，返回新的 TokenPair。
 typedef TokenRefresher = Future<TokenPair> Function(String refreshToken);
@@ -190,6 +263,57 @@ class CloudreveApi {
     }
   }
 
+  Future<dynamic> _put(
+    String path, {
+    Object? data,
+    bool retryOnUnauthorized = true,
+  }) async {
+    if (retryOnUnauthorized) {
+      await _ensureFreshToken();
+    }
+    try {
+      final resp = await dio.put<dynamic>(_url(path), data: data);
+      return _unwrap(resp);
+    } on DioException catch (e) {
+      if (retryOnUnauthorized &&
+          e.response?.statusCode == 401 &&
+          await _tryRefresh()) {
+        return _put(path, data: data, retryOnUnauthorized: false);
+      }
+      _logError(path, e);
+      throw toApiException(e);
+    } catch (e) {
+      _logError(path, e);
+      throw toApiException(e);
+    }
+  }
+
+  Future<dynamic> _delete(
+    String path, {
+    Object? data,
+    bool retryOnUnauthorized = true,
+  }) async {
+    if (retryOnUnauthorized) {
+      await _ensureFreshToken();
+    }
+    try {
+      final resp =
+          await dio.delete<dynamic>(_url(path), data: data);
+      return _unwrap(resp);
+    } on DioException catch (e) {
+      if (retryOnUnauthorized &&
+          e.response?.statusCode == 401 &&
+          await _tryRefresh()) {
+        return _delete(path, data: data, retryOnUnauthorized: false);
+      }
+      _logError(path, e);
+      throw toApiException(e);
+    } catch (e) {
+      _logError(path, e);
+      throw toApiException(e);
+    }
+  }
+
   /// 解包统一响应壳 {code, data, msg}。
   dynamic _unwrap(Response<dynamic> resp) {
     final data = resp.data;
@@ -325,5 +449,184 @@ class CloudreveApi {
       return [data];
     }
     return result;
+  }
+
+  // ---------- 分享 ----------
+
+  /// 获取我的分享列表。
+  Future<List<ShareLink>> listMyShares({
+    int pageSize = 50,
+    String? nextPageToken,
+  }) async {
+    final data = await _get('share', queryParameters: {
+      'page_size': pageSize,
+      if (nextPageToken != null && nextPageToken.isNotEmpty)
+        'next_page_token': nextPageToken,
+    });
+    if (data is Map && data['shares'] is List) {
+      return (data['shares'] as List<dynamic>)
+          .map((e) => ShareLink.fromJson(
+              (e as Map).cast<String, dynamic>()))
+          .toList();
+    }
+    return const [];
+  }
+
+  /// 创建分享链接，返回分享 URL。
+  Future<String> createShare({
+    required String uri,
+    bool? isPrivate,
+    String? password,
+    int? expire,
+    bool? shareView,
+    bool? showReadme,
+    Map<String, dynamic>? permissions,
+  }) async {
+    final data = await _put('share', data: {
+      'uri': uri,
+      'permissions': permissions ??
+          {
+            'anonymous': 'AQ==',
+            'everyone': 'AQ==',
+          },
+      if (isPrivate != null) 'is_private': isPrivate,
+      if (password != null && password.isNotEmpty) 'password': password,
+      if (expire != null && expire > 0) 'expire': expire,
+      if (shareView != null) 'share_view': shareView,
+      if (showReadme != null) 'show_readme': showReadme,
+    });
+    if (data is String) return data;
+    return '';
+  }
+
+  /// 删除分享链接。
+  Future<void> deleteShare(String id) async {
+    await _delete('share/$id');
+  }
+
+  /// 获取分享链接信息（外部分享链接打开时使用）。
+  Future<ShareLink> getShareInfo(
+    String id, {
+    String? password,
+    bool countViews = false,
+    bool ownerExtended = false,
+  }) async {
+    final data = await _get(
+      'share/info/$id',
+      queryParameters: {
+        if (password != null && password.isNotEmpty) 'password': password,
+        if (countViews) 'count_views': true,
+        if (ownerExtended) 'owner_extended': true,
+      },
+    );
+    return ShareLink.fromJson(data as Map<String, dynamic>);
+  }
+
+  // ---------- 上传 ----------
+
+  /// 创建上传会话。
+  Future<UploadSession> createUploadSession({
+    required String uri,
+    required int size,
+    int? lastModified,
+    String? mimeType,
+    String? entityType,
+  }) async {
+    final data = await _put('file/upload', data: {
+      'uri': uri,
+      'size': size,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (entityType != null) 'entity_type': entityType,
+    });
+    return UploadSession.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 上传单个分片（适用于本地存储或 relay 模式）。
+  Future<void> uploadChunk({
+    required String sessionId,
+    required int index,
+    required List<int> bytes,
+    CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
+  }) async {
+    final Options options = Options(
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': '${bytes.length}',
+      },
+      sendTimeout: const Duration(minutes: 10),
+      receiveTimeout: const Duration(minutes: 5),
+    );
+    await _ensureFreshToken();
+    try {
+      final resp = await dio.post<dynamic>(
+        'file/upload/$sessionId/$index',
+        data: bytes,
+        options: options,
+        cancelToken: cancelToken,
+        onSendProgress: onSendProgress,
+      );
+      _unwrap(resp);
+    } on DioException catch (e) {
+      if (cancelToken?.isCancelled == true) rethrow;
+      if (e.response?.statusCode == 401 && await _tryRefresh()) {
+        final resp = await dio.post<dynamic>(
+          'file/upload/$sessionId/$index',
+          data: bytes,
+          options: options,
+          cancelToken: cancelToken,
+          onSendProgress: onSendProgress,
+        );
+        _unwrap(resp);
+        return;
+      }
+      _logError('file/upload/$sessionId/$index', e);
+      throw toApiException(e);
+    } catch (e) {
+      _logError('file/upload/$sessionId/$index', e);
+      throw toApiException(e);
+    }
+  }
+
+  /// 删除文件 / 文件夹。
+  ///
+  /// [unlink]：保留物理文件，仅解除引用（需用户组开启“高级删除选项”）。
+  /// [skipSoftDelete]：为 true 时跳过回收站直接彻底删除；
+  /// 为 false 时移入回收站（若站点回收站可用）。
+  Future<void> deleteFiles({
+    required List<String> uris,
+    bool unlink = false,
+    bool skipSoftDelete = false,
+  }) async {
+    await _delete('file', data: {
+      'uris': uris,
+      'unlink': unlink,
+      'skip_soft_delete': skipSoftDelete,
+    });
+  }
+
+  /// 从回收站恢复到原位置。
+  Future<void> restoreFiles({required List<String> uris}) async {
+    await _post('file/restore', data: {'uris': uris});
+  }
+
+  /// 删除上传会话（取消或失败清理时使用）。
+  Future<void> deleteUploadSession({
+    required String id,
+    required String uri,
+  }) async {
+    await _delete('file/upload', data: {'id': id, 'uri': uri});
+  }
+
+  /// 通知 Cloudreve OneDrive 文件已完成上传。
+  Future<void> completeOneDriveUpload({
+    required String sessionId,
+    required String key,
+  }) async {
+    await _post(
+      'callback/onedrive/$sessionId/$key',
+      retryOnUnauthorized: false,
+    );
   }
 }

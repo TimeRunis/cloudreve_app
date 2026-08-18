@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
         android:label="speed_app"
@@ -41,6 +42,12 @@
         <!-- 下载守护前台服务：锁屏 / 后台时保持进程与网络运行 -->
         <service
             android:name=".DownloadForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- 上传守护前台服务：上传期间保持进程与网络运行 -->
+        <service
+            android:name=".UploadForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
     </application>

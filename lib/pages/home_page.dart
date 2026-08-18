@@ -1,7 +1,9 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import '../models/user.dart';
@@ -11,6 +13,7 @@ import '../providers/directory_provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/site_config_provider.dart';
+import '../providers/upload_provider.dart';
 import '../widgets/add_menu_popup.dart';
 import '../widgets/file_card.dart';
 import '../widgets/file_icon.dart';
@@ -19,13 +22,17 @@ import '../widgets/file_operations_popup.dart';
 import '../widgets/image_viewer.dart';
 import '../widgets/more_menu_popup.dart';
 import '../widgets/search_popup.dart';
+import '../widgets/share_create_sheet.dart';
 import '../widgets/sidebar_panel.dart';
 import '../widgets/sort_popup.dart';
 import '../widgets/user_menu_popup.dart';
 import '../widgets/video_player_viewer.dart';
 import '../widgets/view_panel.dart';
 import 'downloads_page.dart';
+import 'my_shares_page.dart';
 import 'site_list_page.dart';
+import 'trash_page.dart';
+import 'upload_queue_page.dart';
 
 /// 文件浏览主页。
 class HomePage extends ConsumerStatefulWidget {
@@ -84,8 +91,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     return segments.isEmpty ? '/' : '/${segments.join('/')}';
   }
 
-  /// 系统返回键：分类/非根目录返回上一级，根目录两次返回退出。
+  /// 系统返回键：多选时先取消选择；否则分类/非根目录返回上一级，根目录两次返回退出。
   void _handleBackPress() {
+    if (_selected.isNotEmpty) {
+      _clearSelection();
+      return;
+    }
     if (_isSearchActive) {
       setState(() => _searchKeyword = '');
       return;
@@ -270,6 +281,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                     MaterialPageRoute(builder: (_) => const DownloadsPage()),
                   );
                 },
+                onTrash: () {
+                  Navigator.of(context).pop();
+                  _openTrash();
+                },
+                onMyShares: () {
+                  Navigator.of(context).pop();
+                  _openMyShares();
+                },
               ),
             ),
           ],
@@ -282,6 +301,46 @@ class _HomePageState extends ConsumerState<HomePage> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const DownloadsPage()),
     );
+  }
+
+  void _openTrash() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TrashPage()),
+    );
+  }
+
+  void _openMyShares() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MySharesPage()),
+    );
+  }
+
+  void _openUploadQueue() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UploadQueuePage(targetDirUri: pathToUri(_path)),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUpload() async {
+    final result =
+        await FilePicker.platform.pickFiles(allowMultiple: true, withData: false);
+    if (result == null || !mounted) return;
+    final paths = result.files.map((f) => f.path).whereType<String>().toList();
+    if (paths.isEmpty) return;
+    final site = ref.read(currentSiteProvider);
+    if (site == null) return;
+    final count = await ref
+        .read(uploadManagerProvider)
+        .manager
+        .enqueueFiles(paths: paths, siteId: site.id, targetDirUri: pathToUri(_path));
+    if (!mounted) return;
+    if (count > 0) {
+      _openUploadQueue();
+    } else {
+      _toast('未选择可上传的文件');
+    }
   }
 
   void _openUserMenu() {
@@ -354,7 +413,11 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: AddMenuPopup(
                 onAction: (action) {
                   Navigator.of(context).pop();
-                  _toast('功能暂未实现：$action');
+                  if (action == AddMenuAction.uploadFile) {
+                    _pickAndUpload();
+                  } else {
+                    _toast('功能暂未实现：$action');
+                  }
                 },
               ),
             ),
@@ -552,9 +615,16 @@ class _HomePageState extends ConsumerState<HomePage> {
       _enqueueDownloads();
       return;
     }
+    if (op == FileOperation.delete) {
+      _deleteSelected();
+      return;
+    }
+    if (op == FileOperation.share) {
+      _shareSingleItem();
+      return;
+    }
     const labels = {
       FileOperation.open: '打开',
-      FileOperation.share: '分享',
       FileOperation.rename: '重命名',
       FileOperation.copy: '复制',
       FileOperation.directLink: '获取直链',
@@ -562,9 +632,155 @@ class _HomePageState extends ConsumerState<HomePage> {
       FileOperation.organize: '整理',
       FileOperation.more: '更多操作',
       FileOperation.details: '详细信息',
-      FileOperation.delete: '删除',
     };
     _toast('功能暂未实现：${labels[op]}');
+  }
+
+  /// 对当前选中的单个文件/文件夹（或无选中时的当前文件夹）发起分享。
+  void _shareSingleItem() {
+    final selected = _selectedItems();
+    if (selected.length > 1) {
+      _toast('一次只能分享一个文件或文件夹');
+      return;
+    }
+    FileItem target;
+    if (selected.length == 1) {
+      target = selected.first;
+    } else if (_path != '/' && _category == null && !_isSearchActive) {
+      final name = _path.split('/').where((s) => s.isNotEmpty).last;
+      target = FileItem(
+        type: 1,
+        id: '',
+        name: name,
+        path: pathToUri(_path),
+      );
+    } else {
+      _toast('请先选择要分享的文件或文件夹');
+      return;
+    }
+    _showCreateShare(target);
+  }
+
+  /// 弹出创建分享面板：创建结果与复制操作在面板内完成。
+  Future<void> _showCreateShare(FileItem target) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ShareCreateSheet(file: target),
+    );
+  }
+
+  /// 删除选中文件/文件夹，支持“移入回收站 / 彻底删除 / 保留物理文件”。
+  Future<void> _deleteSelected() async {
+    var selected = _selectedItems();
+    var deletingCurrentFolder = false;
+    if (selected.isEmpty) {
+      // 面包屑里的“删除”针对当前目录本身；根目录不处理。
+      if (_path == '/' || _category != null || _isSearchActive) {
+        _toast('没有可删除的选中文件');
+        return;
+      }
+      deletingCurrentFolder = true;
+      final name = _path.split('/').where((s) => s.isNotEmpty).last;
+      selected = [
+        FileItem(
+          type: 1,
+          id: '',
+          name: name,
+          path: pathToUri(_path),
+        ),
+      ];
+    }
+
+    var skipSoftDelete = false;
+    var unlink = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('删除 ${selected.length} 项'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '选择删除方式：',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: context.appColors.textSecondary,
+                      ),
+                    ),
+                    RadioListTile<bool>(
+                      value: false,
+                      groupValue: skipSoftDelete,
+                      title: const Text('移入回收站'),
+                      subtitle: const Text('可恢复（取决于站点回收站设置）'),
+                      onChanged: (v) =>
+                          setDialogState(() => skipSoftDelete = v ?? false),
+                    ),
+                    RadioListTile<bool>(
+                      value: true,
+                      groupValue: skipSoftDelete,
+                      title: const Text('彻底删除'),
+                      subtitle: const Text('跳过回收站，不可恢复'),
+                      onChanged: (v) =>
+                          setDialogState(() => skipSoftDelete = v ?? true),
+                    ),
+                    const Divider(),
+                    CheckboxListTile(
+                      value: unlink,
+                      onChanged: (v) =>
+                          setDialogState(() => unlink = v ?? false),
+                      title: const Text('保留物理文件'),
+                      subtitle: const Text('解除引用并保留底层文件，需用户组高级删除权限'),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('确认删除'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(apiProvider).deleteFiles(
+            uris: selected.map((f) => f.path).toList(),
+            unlink: unlink,
+            skipSoftDelete: skipSoftDelete,
+          );
+      if (!mounted) return;
+      if (deletingCurrentFolder) {
+        _navigateTo(_parentPath(_path));
+      } else {
+        _clearSelection();
+        _refresh();
+      }
+      _toast(skipSoftDelete ? '已彻底删除' : '已移入回收站');
+    } catch (e) {
+      print('[HomePage] 删除文件失败: $e');
+      if (mounted) _toast('删除失败，请重试');
+    }
   }
 
   /// 把当前选中的文件加入下载队列（内部批量获取直链）。
@@ -598,6 +814,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final user = ref.watch(authProvider).user;
     // 只读不订阅：角标区域用 ListenableBuilder 单独订阅，避免主页每秒整体重建。
     final downloadManager = ref.read(downloadManagerProvider).manager;
+    final uploadManager = ref.read(uploadManagerProvider).manager;
 
     return PopScope(
       canPop: false,
@@ -618,6 +835,15 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         actions: _selected.isEmpty
             ? [
+                ListenableBuilder(
+                  listenable: uploadManager,
+                  builder: (context, _) => _AppBarIconButton(
+                    icon: Icons.upload_outlined,
+                    tooltip: '上传',
+                    badgeCount: uploadManager.activeCount,
+                    onPressed: _openUploadQueue,
+                  ),
+                ),
                 ListenableBuilder(
                   listenable: downloadManager,
                   builder: (context, _) => _AppBarIconButton(
@@ -1236,34 +1462,35 @@ class _FolderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            InkWell(
-              onTap: onSelect,
-            child: isSelected
-                ? const SelectionCheck(size: 18)
-                : Icon(Icons.folder,
-                    size: 18, color: context.appColors.textSecondary),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: InkWell(
-              onTap: onOpen,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  folder.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 14, color: context.appColors.textPrimary),
+      child: InkWell(
+        onTap: onOpen,
+        onLongPress: onSelect,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                isSelected
+                    ? const SelectionCheck(size: 18)
+                    : Icon(Icons.folder,
+                        size: 18, color: context.appColors.textSecondary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      folder.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14, color: context.appColors.textPrimary),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-        ],
         ),
       ),
     );

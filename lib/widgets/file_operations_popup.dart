@@ -77,6 +77,7 @@ class FileOperationsPopup extends StatelessWidget {
           _item(context, Icons.open_in_new, '打开', FileOperation.open),
           _item(context, Icons.file_download_outlined, '下载',
               FileOperation.download),
+          _item(context, Icons.share_outlined, '分享', FileOperation.share),
           _item(context, Icons.edit_outlined, '重命名', FileOperation.rename),
           _item(context, Icons.copy_outlined, '复制', FileOperation.copy),
           _item(context, Icons.link, '获取直链', FileOperation.directLink),

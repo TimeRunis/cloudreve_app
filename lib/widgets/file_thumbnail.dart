@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/network/cloudreve_api.dart';
 import '../models/file_item.dart';
 import '../providers/directory_provider.dart';
 import 'file_icon.dart';
@@ -14,6 +15,7 @@ class FileThumbnail extends ConsumerWidget {
   final double size;
   final bool rounded;
   final bool fill;
+  final CloudreveApi? api;
 
   const FileThumbnail({
     super.key,
@@ -21,6 +23,7 @@ class FileThumbnail extends ConsumerWidget {
     this.size = 56,
     this.rounded = true,
     this.fill = false,
+    this.api,
   });
 
   @override
@@ -28,25 +31,48 @@ class FileThumbnail extends ConsumerWidget {
     if (file.isFolder || !hasThumbnail(file)) {
       return _icon(context);
     }
+    final providedApi = api;
+    if (providedApi != null) {
+      return FutureBuilder<String?>(
+        future: providedApi.getThumbnailUrl(
+          file.path,
+          width: 320,
+          height: 320,
+        ),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const _Spinner();
+          }
+          if (snapshot.hasError) return _icon(context);
+          final url = snapshot.data;
+          if (url == null || url.isEmpty) return _icon(context);
+          return _buildImage(context, url);
+        },
+      );
+    }
     final thumbAsync = ref.watch(thumbnailUrlProvider(file.path));
     return thumbAsync.when(
       loading: () => const _Spinner(),
       error: (_, __) => _icon(context),
       data: (url) {
         if (url == null || url.isEmpty) return _icon(context);
-        final img = CachedNetworkImage(
-          imageUrl: url,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => const _Spinner(),
-          errorWidget: (_, __, ___) => _icon(context),
-        );
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(rounded ? 6 : 0),
-          child: fill
-              ? SizedBox.expand(child: img)
-              : SizedBox(width: size, height: size, child: img),
-        );
+        return _buildImage(context, url);
       },
+    );
+  }
+
+  Widget _buildImage(BuildContext context, String url) {
+    final img = CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => const _Spinner(),
+      errorWidget: (_, __, ___) => _icon(context),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(rounded ? 6 : 0),
+      child: fill
+          ? SizedBox.expand(child: img)
+          : SizedBox(width: size, height: size, child: img),
     );
   }
 

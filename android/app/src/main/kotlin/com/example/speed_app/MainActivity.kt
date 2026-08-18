@@ -19,10 +19,13 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "cloudreve/download_notifications"
+        private const val UPLOAD_CHANNEL = "cloudreve/upload_notifications"
         private const val APP_EVENTS_CHANNEL = "cloudreve/app_events"
         private const val NOTIFICATION_CHANNEL_ID = "cloudreve_downloads"
+        private const val UPLOAD_NOTIFICATION_CHANNEL_ID = "cloudreve_uploads"
         private const val PERMISSION_REQUEST_CODE = 4201
         private const val EXTRA_OPEN_DOWNLOADS = "open_downloads"
+        private const val EXTRA_OPEN_UPLOADS = "open_uploads"
     }
 
     private var permissionRequested = false
@@ -86,6 +89,52 @@ class MainActivity : FlutterActivity() {
                     }
                     "stopService" -> {
                         DownloadForegroundService.stop(this)
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPLOAD_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "show" -> {
+                        val id = call.argument<Int>("id") ?: 0
+                        val title = call.argument<String>("title") ?: "上传"
+                        val text = call.argument<String>("text") ?: ""
+                        val percent = call.argument<Int>("percent") ?: 0
+                        showUploadProgress(id, title, text, percent)
+                        result.success(null)
+                    }
+                    "finish" -> {
+                        val id = call.argument<Int>("id") ?: 0
+                        val title = call.argument<String>("title") ?: "上传"
+                        val text = call.argument<String>("text") ?: ""
+                        finishUpload(id, title, text)
+                        result.success(null)
+                    }
+                    "cancel" -> {
+                        val id = call.argument<Int>("id") ?: 0
+                        NotificationManagerCompat.from(this).cancel(id)
+                        result.success(null)
+                    }
+                    "startService" -> {
+                        val title = call.argument<String>("title") ?: "上传中"
+                        val text = call.argument<String>("text") ?: ""
+                        val percent = call.argument<Int>("percent") ?: 0
+                        requestPermissionIfNeeded()
+                        UploadForegroundService.start(this, title, text, percent)
+                        result.success(null)
+                    }
+                    "updateService" -> {
+                        val title = call.argument<String>("title") ?: "上传中"
+                        val text = call.argument<String>("text") ?: ""
+                        val percent = call.argument<Int>("percent") ?: 0
+                        UploadForegroundService.update(this, title, text, percent)
+                        result.success(null)
+                    }
+                    "stopService" -> {
+                        UploadForegroundService.stop(this)
                         result.success(null)
                     }
                     else -> result.notImplemented()
@@ -187,6 +236,63 @@ class MainActivity : FlutterActivity() {
             .setOngoing(false)
             .setAutoCancel(true)
             .setContentIntent(contentIntent(id))
+        NotificationManagerCompat.from(this).notify(id, builder.build())
+    }
+
+    private fun ensureUploadChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(
+                UPLOAD_NOTIFICATION_CHANNEL_ID,
+                "上传任务",
+                NotificationManager.IMPORTANCE_LOW,
+            )
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun uploadContentIntent(id: Int): PendingIntent {
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+            ?: Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        intent.putExtra(EXTRA_OPEN_UPLOADS, true)
+        return PendingIntent.getActivity(
+            this,
+            id,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun showUploadProgress(id: Int, title: String, text: String, percent: Int) {
+        if (!canNotify()) {
+            requestPermissionIfNeeded()
+            return
+        }
+        ensureUploadChannel()
+        val builder = NotificationCompat.Builder(this, UPLOAD_NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setProgress(100, percent.coerceIn(0, 100), false)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(uploadContentIntent(id))
+        NotificationManagerCompat.from(this).notify(id, builder.build())
+    }
+
+    private fun finishUpload(id: Int, title: String, text: String) {
+        if (!canNotify()) return
+        ensureUploadChannel()
+        val builder = NotificationCompat.Builder(this, UPLOAD_NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setProgress(0, 0, false)
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setContentIntent(uploadContentIntent(id))
         NotificationManagerCompat.from(this).notify(id, builder.build())
     }
 }

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/download_task.dart';
 import '../../models/site.dart';
+import '../../models/upload_task.dart';
 import '../../models/user.dart';
 
 /// 本地存储：非敏感配置用 shared_preferences，令牌用 flutter_secure_storage。
@@ -18,6 +19,7 @@ class AppStorage {
   static const _kMultiThreadDownload = 'multi_thread_download';
   static const _kDownloadThreadCount = 'download_thread_count';
   static const _kDownloadTasks = 'download_tasks';
+  static const _kUploadTasks = 'upload_tasks';
 
   AppStorage(this._prefs, this._secure);
 
@@ -79,6 +81,24 @@ class AppStorage {
 
   Future<void> saveDownloadTasks(List<DownloadTask> tasks) => _prefs.setString(
       _kDownloadTasks,
+      jsonEncode(tasks.map((e) => e.toJson()).toList()));
+
+  // ---------- 上传任务 ----------
+  List<UploadTask> getUploadTasks() {
+    final raw = _prefs.getString(_kUploadTasks);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final data = jsonDecode(raw) as List<dynamic>;
+      return data
+          .map((e) => UploadTask.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> saveUploadTasks(List<UploadTask> tasks) => _prefs.setString(
+      _kUploadTasks,
       jsonEncode(tasks.map((e) => e.toJson()).toList()));
 
   // ---------- 令牌（安全存储） ----------

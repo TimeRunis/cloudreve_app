@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import 'file_icon.dart';
@@ -8,8 +9,9 @@ import 'file_thumbnail.dart';
 /// 文件详情底部面板（纯展示组件）。
 class FileInfoSheet extends StatelessWidget {
   final FileItem file;
+  final CloudreveApi? api;
 
-  const FileInfoSheet({super.key, required this.file});
+  const FileInfoSheet({super.key, required this.file, this.api});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,7 @@ class FileInfoSheet extends StatelessWidget {
           children: [
             Row(
               children: [
-                FileThumbnail(file: file, size: 40),
+                FileThumbnail(file: file, size: 40, api: api),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(file.name,

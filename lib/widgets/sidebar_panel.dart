@@ -18,7 +18,9 @@ class SidebarPanel extends ConsumerStatefulWidget {
   final VoidCallback onCycleTheme;
   final VoidCallback onManageSites;
   final VoidCallback? onDownloads;
+  final VoidCallback? onTrash;
   final ValueChanged<FileCategory>? onCategory;
+  final VoidCallback? onMyShares;
 
   const SidebarPanel({
     super.key,
@@ -28,7 +30,9 @@ class SidebarPanel extends ConsumerStatefulWidget {
     required this.onCycleTheme,
     required this.onManageSites,
     this.onDownloads,
+    this.onTrash,
     this.onCategory,
+    this.onMyShares,
   });
 
   @override
@@ -131,9 +135,13 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
               ? widget.onPlaceholder()
               : widget.onCategory!(FileCategory.doc)),
       _SidebarItem(
-          icon: Icons.delete_outline, label: '回收站', onTap: widget.onPlaceholder),
+          icon: Icons.delete_outline,
+          label: '回收站',
+          onTap: widget.onTrash ?? widget.onPlaceholder),
       _SidebarItem(
-          icon: Icons.share_outlined, label: '我的分享', onTap: widget.onPlaceholder),
+          icon: Icons.share_outlined,
+          label: '我的分享',
+          onTap: widget.onMyShares ?? widget.onPlaceholder),
       _SidebarItem(
           icon: Icons.link_outlined,
           label: '连接与挂载',
@@ -282,13 +290,11 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool indent;
 
   const _SidebarItem({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.indent = false,
   });
 
   @override
@@ -297,12 +303,7 @@ class _SidebarItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: EdgeInsets.only(
-          left: indent ? 34 : 12,
-          right: 12,
-          top: 8,
-          bottom: 8,
-        ),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
         child: Row(
           children: [

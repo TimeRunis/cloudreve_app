@@ -3,12 +3,11 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../models/download_task.dart';
+import '../wake_lock.dart';
 import '../../models/file_item.dart';
 import '../network/cloudreve_api.dart';
 import '../storage/app_storage.dart';
@@ -100,7 +99,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
     for (final active in _active.values) {
       active.cancel();
     }
-    WakelockPlus.disable();
+    AppWakeLock.release('download');
     DownloadNotifications.stopService();
     for (final task in _tasks) {
       if (task.isActive) {
@@ -140,10 +139,10 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
     final hasPending =
         _tasks.any((t) => t.status == DownloadStatus.waiting);
     if (_active.isNotEmpty || hasPending) {
-      WakelockPlus.enable();
+      AppWakeLock.acquire('download');
       _notifyForegroundService(start: true);
     } else {
-      WakelockPlus.disable();
+      AppWakeLock.release('download');
       DownloadNotifications.stopService();
     }
   }
