@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_exception.dart';
 import '../core/network/cloudreve_api.dart';
@@ -7,6 +8,7 @@ import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import '../models/share.dart';
 import '../models/site.dart';
+import '../providers/download_provider.dart';
 import '../widgets/file_card.dart';
 import '../widgets/file_icon.dart';
 import '../widgets/file_info_sheet.dart';
@@ -15,7 +17,7 @@ import '../widgets/video_player_viewer.dart';
 import '../widgets/view_panel.dart';
 
 /// 分享访问页：支持公开分享和带密码分享，可浏览分享目录/打开文件。
-class ShareViewerPage extends StatefulWidget {
+class ShareViewerPage extends ConsumerStatefulWidget {
   final Site site;
   final String shareId;
   final String? password;
@@ -28,10 +30,10 @@ class ShareViewerPage extends StatefulWidget {
   });
 
   @override
-  State<ShareViewerPage> createState() => _ShareViewerPageState();
+  ConsumerState<ShareViewerPage> createState() => _ShareViewerPageState();
 }
 
-class _ShareViewerPageState extends State<ShareViewerPage> {
+class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   late final Dio _dio = createDio();
   late final CloudreveApi _api =
       CloudreveApi(dio: _dio, site: widget.site, token: null);
@@ -47,6 +49,10 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
   bool _loadingFiles = false;
   String? _loadError;
   int _fileLoadSeq = 0;
+
+  final Set<String> _selected = {};
+
+  bool get _isSelectionActive => _selected.isNotEmpty;
 
   // 与主页一致的视图偏好。
   String _viewMode = 'grid'; // grid | list | gallery
@@ -238,6 +244,7 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
     setState(() {
       _path = _path.isEmpty ? folder.name : '$_path/${folder.name}';
       _files = [];
+      _selected.clear();
     });
     _loadFiles();
   }
@@ -245,12 +252,78 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
   void _goBack() {
     final segments = _path.split('/').where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) return;
-    segments.removeLast();
     setState(() {
       _path = segments.isEmpty ? '' : segments.join('/');
       _files = [];
+      _selected.clear();
     });
     _loadFiles();
+  }
+
+  void _toggleSelect(FileItem file) {
+    setState(() {
+      if (!_selected.remove(file.path)) {
+        _selected.add(file.path);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() => _selected.clear());
+  }
+
+  Future<void> _downloadSelected() async {
+    final selectedFiles = _files
+        .where((f) => _selected.contains(f.path) && !f.isFolder)
+        .toList();
+    if (selectedFiles.isEmpty) {
+      _toast('文件夹打包下载暂不支持');
+      return;
+    }
+    try {
+      final count = await ref
+          .read(downloadManagerProvider)
+          .manager
+          .enqueueCloudreveFiles(_api, selectedFiles);
+      if (!mounted) return;
+      if (count > 0) _clearSelection();
+      _toast(count > 0 ? '已加入下载队列：$count 个任务' : '获取下载链接失败');
+    } catch (e) {
+      print('[ShareViewerPage] 加入下载队列失败: $e');
+      if (mounted) _toast('加入下载队列失败');
+    }
+  }
+
+  Future<void> _downloadVisibleFiles() async {
+    final files = _files.where((f) => !f.isFolder).toList();
+    if (files.isEmpty) {
+      _toast('当前目录没有可下载的文件');
+      return;
+    }
+    try {
+      final count = await ref
+          .read(downloadManagerProvider)
+          .manager
+          .enqueueCloudreveFiles(_api, files);
+      if (!mounted) return;
+      _toast(count > 0 ? '已加入下载队列：$count 个任务' : '获取下载链接失败');
+    } catch (e) {
+      print('[ShareViewerPage] 加入下载队列失败: $e');
+      if (mounted) _toast('加入下载队列失败');
+    }
+  }
+
+  void _handleDownloadTap() {
+    if (_isSelectionActive) {
+      _downloadSelected();
+    } else {
+      _downloadVisibleFiles();
+    }
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _open(FileItem file) {
@@ -313,7 +386,9 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
         bottom: !_checking && !_locked && _fatalError == null
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(52),
-                child: _buildToolbar(context),
+                child: _isSelectionActive
+                    ? _buildSelectionBar(context)
+                    : _buildToolbar(context),
               )
             : null,
       ),
@@ -386,6 +461,11 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
                     onTap: _openViewPanel,
                   ),
                   _ToolbarAction(
+                    icon: Icons.file_download_outlined,
+                    tooltip: '下载',
+                    onTap: _handleDownloadTap,
+                  ),
+                  _ToolbarAction(
                     icon: Icons.refresh,
                     tooltip: '刷新',
                     onTap: _refresh,
@@ -441,6 +521,35 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
     return _buildListing();
   }
 
+  Widget _buildSelectionBar(BuildContext context) {
+    final colors = context.appColors;
+    return Container(
+      color: colors.headerBg,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Text(
+            '已选择 ${_selected.length} 项',
+            style: TextStyle(
+                fontSize: 14, color: colors.textPrimary),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _clearSelection,
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('取消选择'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            onPressed: _downloadSelected,
+            icon: const Icon(Icons.file_download_outlined, size: 18),
+            label: Text('下载 (${_selected.length})'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildListing() {
     final colors = context.appColors;
     final files = _files;
@@ -454,10 +563,17 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
         separatorBuilder: (_, __) => Divider(height: 1, color: colors.border),
         itemBuilder: (context, i) {
           final file = files[i];
+          final isSelected = _selected.contains(file.path);
           return ListTile(
             onTap: () => _open(file),
-            leading: Icon(fileIcon(file),
-                color: fileIconColor(context, file), size: 28),
+            leading: IconButton(
+              tooltip: '选择',
+              icon: isSelected
+                  ? const SelectionCheck(size: 22)
+                  : Icon(fileIcon(file),
+                      color: fileIconColor(context, file), size: 28),
+              onPressed: () => _toggleSelect(file),
+            ),
             title: Text(
               file.name,
               maxLines: 1,
@@ -495,7 +611,9 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
               final folder = folders[i];
               return _ShareFolderCard(
                 folder: folder,
+                isSelected: _selected.contains(folder.path),
                 onOpen: () => _open(folder),
+                onLongPress: () => _toggleSelect(folder),
               );
             },
           ),
@@ -518,9 +636,9 @@ class _ShareViewerPageState extends State<ShareViewerPage> {
               final file = fileItems[i];
               return FileCard(
                 file: file,
-                isSelected: false,
+                isSelected: _selected.contains(file.path),
                 showThumb: _thumbnails,
-                onSelect: () => _open(file),
+                onSelect: () => _toggleSelect(file),
                 onOpen: () => _open(file),
                 api: _api,
               );
@@ -553,9 +671,16 @@ class _ShareSectionTitle extends StatelessWidget {
 /// 与主页文件夹卡片一致的横向卡片。
 class _ShareFolderCard extends StatelessWidget {
   final FileItem folder;
+  final bool isSelected;
   final VoidCallback onOpen;
+  final VoidCallback onLongPress;
 
-  const _ShareFolderCard({required this.folder, required this.onOpen});
+  const _ShareFolderCard({
+    required this.folder,
+    required this.isSelected,
+    required this.onOpen,
+    required this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -568,25 +693,32 @@ class _ShareFolderCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onOpen,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Icon(Icons.folder, size: 18, color: colors.textSecondary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    folder.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 14, color: colors.textPrimary),
+          child: SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                isSelected
+                    ? const SelectionCheck(size: 18)
+                    : Icon(Icons.folder,
+                        size: 18, color: colors.textSecondary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      folder.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14, color: colors.textPrimary),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

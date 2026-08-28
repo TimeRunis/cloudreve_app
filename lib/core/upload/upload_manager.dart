@@ -320,7 +320,9 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
         _cancelTokens[id] = cancelToken;
 
         // 分片发送过程中实时更新 uploadedBytes，UI 进度条和速度不再等整个分片结束。
+        var sentAll = false;
         void onSendProgress(int sent, int total) {
+          if (total > 0 && sent >= total) sentAll = true;
           final live = _byId(id);
           if (live == null ||
               live.status != UploadStatus.uploading ||
@@ -333,18 +335,36 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
         }
 
         try {
-          await strategy.uploadChunk(
-            api: apiOf(),
-            task: current,
-            index: index,
-            bytes: bytes,
-            chunkSize: chunkSize,
-            cancelToken: cancelToken,
-            onSendProgress: onSendProgress,
-          );
-        } on DioException catch (e) {
-          if (CancelToken.isCancel(e)) return;
-          rethrow;
+          // OneDrive 有时在上传进度到达 100% 后连接被服务端提前关闭，抛 Dio 错误；
+          // 此时数据实际已完整发出，重试同一分片通常立即成功，因此自动重试几次。
+          const maxUploadRetries = 3;
+          final isOneDrive = current.strategyId == 'onedrive' ||
+              current.storageType == 'onedrive';
+          for (var attempt = 0; ; attempt++) {
+            sentAll = false;
+            try {
+              await strategy.uploadChunk(
+                api: apiOf(),
+                task: current,
+                index: index,
+                bytes: bytes,
+                chunkSize: chunkSize,
+                cancelToken: cancelToken,
+                onSendProgress: onSendProgress,
+              );
+              break;
+            } on DioException catch (e) {
+              if (CancelToken.isCancel(e)) return;
+              if (isOneDrive &&
+                  sentAll &&
+                  attempt < maxUploadRetries - 1) {
+                print('[UploadManager] OneDrive 分片 $index 发送到 100% 后连接异常，'
+                    '自动重试第 ${attempt + 1} 次');
+                continue;
+              }
+              rethrow;
+            }
+          }
         } finally {
           _cancelTokens.remove(id);
         }

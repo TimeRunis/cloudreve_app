@@ -580,6 +580,8 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // 竖屏非全屏也同样铺一层黑边手势层：视频画面没覆盖的地方也能滑动操作。
+        _buildGestureLayer(),
         Column(
           children: [
             _buildPageTopBar(),
@@ -713,7 +715,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
   Widget _buildErrorView() {
     final detail = _controller?.value.errorDescription ?? _errorMessage ?? '';
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -727,8 +729,10 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
             ),
             const SizedBox(height: 6),
             Text(
-              detail,
-              maxLines: 3,
+              detail.isNotEmpty && detail.length < 100
+                  ? detail
+                  : '当前视频编码格式可能不受支持，或文件已损坏。',
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white38, fontSize: 12),
