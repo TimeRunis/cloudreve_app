@@ -75,18 +75,6 @@ class UserMenuPopup extends StatelessWidget {
             ),
             Divider(height: 1, color: context.appColors.border),
             PopupItem(
-                icon: Icons.build_outlined,
-                label: '管理面板',
-                onTap: () => onAction(UserMenuAction.managePanel)),
-            PopupItem(
-                icon: Icons.settings_outlined,
-                label: '设置',
-                onTap: () => onAction(UserMenuAction.settings)),
-            PopupItem(
-                icon: Icons.person_outline,
-                label: '个人主页',
-                onTap: () => onAction(UserMenuAction.profile)),
-            PopupItem(
                 icon: Icons.logout,
                 label: '退出登录',
                 onTap: () => onAction(UserMenuAction.logout)),

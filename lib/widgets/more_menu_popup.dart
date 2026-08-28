@@ -29,10 +29,6 @@ class MoreMenuPopup extends StatelessWidget {
                 icon: Icons.refresh,
                 label: '刷新',
                 onTap: () => onAction(MoreMenuAction.refresh)),
-            PopupItem(
-                icon: Icons.push_pin_outlined,
-                label: '固定到侧边栏',
-                onTap: () => onAction(MoreMenuAction.pin)),
             Divider(height: 1, color: context.appColors.border),
             PopupItem(
                 icon: Icons.select_all,

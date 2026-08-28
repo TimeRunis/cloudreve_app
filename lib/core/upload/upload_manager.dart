@@ -355,11 +355,15 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
               break;
             } on DioException catch (e) {
               if (CancelToken.isCancel(e)) return;
-              if (isOneDrive &&
-                  sentAll &&
+              final isRangeError =
+                  e.response?.statusCode == 400 && isOneDrive;
+              // OneDrive 在上传进度到 100% 后偶发 400/连接异常，重发同一分片通常成功。
+              if ((isOneDrive && sentAll || isRangeError) &&
                   attempt < maxUploadRetries - 1) {
-                print('[UploadManager] OneDrive 分片 $index 发送到 100% 后连接异常，'
+                print('[UploadManager] OneDrive 分片 $index '
+                    '发送到 100% 后异常（${e.response?.statusCode}），'
                     '自动重试第 ${attempt + 1} 次');
+                await Future<void>.delayed(const Duration(milliseconds: 400));
                 continue;
               }
               rethrow;

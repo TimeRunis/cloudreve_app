@@ -41,7 +41,6 @@ class SidebarPanel extends ConsumerStatefulWidget {
 
 class _SidebarPanelState extends ConsumerState<SidebarPanel> {
   bool _myFilesExpanded = true;
-  bool _sharedExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -94,22 +93,6 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
               depth: 1,
               onNavigate: widget.onNavigate,
             )),
-      _GroupHeader(
-        icon: Icons.group_outlined,
-        label: '与我共享',
-        expanded: _sharedExpanded,
-        onTap: () => setState(() => _sharedExpanded = !_sharedExpanded),
-      ),
-      if (_sharedExpanded)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text('暂无共享内容',
-                style: TextStyle(
-                    fontSize: 12, color: context.appColors.textMuted)),
-          ),
-        ),
       _SidebarItem(
           icon: Icons.image_outlined,
           label: '图片',
@@ -142,10 +125,6 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
           icon: Icons.share_outlined,
           label: '我的分享',
           onTap: widget.onMyShares ?? widget.onPlaceholder),
-      _SidebarItem(
-          icon: Icons.link_outlined,
-          label: '连接与挂载',
-          onTap: widget.onPlaceholder),
       _SidebarItem(
           icon: Icons.download_outlined,
           label: '下载任务',

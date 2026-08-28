@@ -54,41 +54,23 @@ class FileOperationsPopup extends StatelessWidget {
     switch (kind) {
       case FileOperationKind.folder:
         return [
-          _item(context, Icons.arrow_right, '进入', FileOperation.open),
-          _item(context, Icons.file_download_outlined, '下载',
-              FileOperation.download),
           _item(context, Icons.share_outlined, '分享', FileOperation.share),
-          _item(context, Icons.edit_outlined, '重命名', FileOperation.rename),
-          _item(context, Icons.copy_outlined, '复制', FileOperation.copy),
-          _item(context, Icons.link, '获取直链', FileOperation.directLink),
           Divider(height: 1, color: context.appColors.border),
-          _item(context, Icons.label_outline, '标签', FileOperation.tag,
-              trailing: true),
-          _item(context, Icons.folder_open, '整理', FileOperation.organize,
-              trailing: true),
-          _item(context, Icons.build, '更多操作', FileOperation.more,
-              trailing: true),
-          Divider(height: 1, color: context.appColors.border),
-          _item(context, Icons.info_outline, '详细信息', FileOperation.details),
           _item(context, Icons.delete_outline, '删除', FileOperation.delete),
         ];
       case FileOperationKind.file:
         return [
-          _item(context, Icons.open_in_new, '打开', FileOperation.open),
           _item(context, Icons.file_download_outlined, '下载',
               FileOperation.download),
           _item(context, Icons.share_outlined, '分享', FileOperation.share),
-          _item(context, Icons.edit_outlined, '重命名', FileOperation.rename),
-          _item(context, Icons.copy_outlined, '复制', FileOperation.copy),
-          _item(context, Icons.link, '获取直链', FileOperation.directLink),
-          _item(context, Icons.info_outline, '详细信息', FileOperation.details),
+          Divider(height: 1, color: context.appColors.border),
           _item(context, Icons.delete_outline, '删除', FileOperation.delete),
         ];
       case FileOperationKind.multiple:
         return [
           _item(context, Icons.file_download_outlined, '下载',
               FileOperation.download),
-          _item(context, Icons.copy_outlined, '复制', FileOperation.copy),
+          Divider(height: 1, color: context.appColors.border),
           _item(context, Icons.delete_outline, '删除', FileOperation.delete),
         ];
     }
