@@ -237,13 +237,16 @@ class _UploadTaskTile extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              _progressText(task),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.appColors.textSecondary,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                _progressText(task),
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: context.appColors.textSecondary,
+                                ),
                               ),
                             ),
                           ),

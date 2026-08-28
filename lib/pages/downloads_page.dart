@@ -322,12 +322,16 @@ class _SummaryCard extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: context.appColors.textPrimary,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: context.appColors.textPrimary,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -420,13 +424,32 @@ class _TaskCard extends StatelessWidget {
                               BoxDecoration(color: color, shape: BoxShape.circle),
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          task.status == DownloadStatus.downloading
-                              ? '${task.statusLabel} · ${formatSpeed(task.speed)}'
-                              : task.statusLabel,
-                          style:
-                              TextStyle(fontSize: 12, color: context.appColors.textSecondary),
+                        Flexible(
+                          child: Text(
+                            task.statusLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: context.appColors.textSecondary),
+                          ),
                         ),
+                        if (task.status == DownloadStatus.downloading) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '· ${formatSpeed(task.speed)}',
+                                maxLines: 1,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: context.appColors.textSecondary),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 6),
