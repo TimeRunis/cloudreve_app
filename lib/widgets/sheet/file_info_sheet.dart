@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/format/cloudreve_path.dart';
 import '../../core/network/cloudreve_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/file_item.dart';
@@ -35,7 +36,7 @@ class FileInfoSheet extends StatelessWidget {
             const SizedBox(height: 16),
             _row(context, '类型', file.isFolder ? '文件夹' : '文件'),
             if (!file.isFolder) _row(context, '大小', formatSize(file.size)),
-            _row(context, '路径', file.relativePath),
+            _row(context, '路径', readableCloudrevePath(file.path)),
           ],
         ),
       ),

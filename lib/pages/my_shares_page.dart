@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/format/date_time.dart';
 import '../core/theme/app_colors.dart';
 import '../models/share.dart';
 import '../providers/api_provider.dart';
@@ -29,7 +30,20 @@ class _MySharesPageState extends ConsumerState<MySharesPage> {
   }
 
   void _load() {
-    _future = ref.read(apiProvider).listMyShares(pageSize: 100);
+    _future =
+        ref.read(apiProvider).listMyShares(pageSize: 100).then(_newestFirst);
+  }
+
+  /// 最新创建的分享排最前（服务端不保证顺序）。
+  List<ShareLink> _newestFirst(List<ShareLink> shares) {
+    final sorted = [...shares];
+    sorted.sort(
+      (a, b) => compareNewestFirst(
+        DateTime.tryParse(a.createdAt),
+        DateTime.tryParse(b.createdAt),
+      ),
+    );
+    return sorted;
   }
 
   void _reload() {
