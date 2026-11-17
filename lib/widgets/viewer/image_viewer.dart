@@ -16,6 +16,9 @@ import '../sheet/file_info_sheet.dart';
 ///
 /// 图片统一走 [ImageLoader]：内存缓存 + 最多 5 张并发 + 滑走后台继续加载，
 /// 打开时预取前后各一张。
+///
+/// 支持双指 / 鼠标滚轮缩放、双击放大还原、放大后拖拽平移；
+/// 放大期间会临时禁用左右翻页，避免拖拽图片时误切页。
 class ImageViewer extends ConsumerStatefulWidget {
   final List<FileItem> images;
   final int initialIndex;
@@ -40,6 +43,9 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
   /// 分享页传入自己的 api；主页走全局 provider。
   late final CloudreveApi _api = widget.api ?? ref.read(apiProvider);
 
+  /// 当前页是否处于放大状态：放大时禁用翻页，手势改为拖拽平移图片。
+  bool _zoomed = false;
+
   @override
   void initState() {
     super.initState();
@@ -61,8 +67,16 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
   }
 
   void _onPageChanged(int index) {
-    setState(() => _index = index);
+    setState(() {
+      _index = index;
+      _zoomed = false;
+    });
     _prefetch(index);
+  }
+
+  void _handleZoomChanged(bool zoomed) {
+    if (_zoomed == zoomed) return;
+    setState(() => _zoomed = zoomed);
   }
 
   @override
@@ -74,10 +88,16 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
         children: [
           PageView.builder(
             controller: _controller,
+            physics: _zoomed
+                ? const NeverScrollableScrollPhysics()
+                : const PageScrollPhysics(),
             itemCount: widget.images.length,
             onPageChanged: _onPageChanged,
-            itemBuilder: (context, i) =>
-                _ImageViewerPage(file: widget.images[i], api: _api),
+            itemBuilder: (context, i) => _ImageViewerPage(
+              file: widget.images[i],
+              api: _api,
+              onZoomChanged: _handleZoomChanged,
+            ),
           ),
           SafeArea(
             child: Padding(
@@ -150,18 +170,49 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
 
 /// 单张图片页：从 [ImageLoader] 取图（缓存 + 后台加载 + 并发上限），
 /// 下载过程展示进度，失败可重试。
+///
+/// 加载完成后可缩放：双指 / 鼠标滚轮缩放、双击放大还原、放大后拖拽平移。
 class _ImageViewerPage extends ConsumerStatefulWidget {
   final FileItem file;
   final CloudreveApi? api;
 
-  const _ImageViewerPage({required this.file, this.api});
+  /// 放大状态变化：父级据此临时禁用左右翻页。
+  final ValueChanged<bool> onZoomChanged;
+
+  const _ImageViewerPage({
+    required this.file,
+    required this.onZoomChanged,
+    this.api,
+  });
 
   @override
   ConsumerState<_ImageViewerPage> createState() => _ImageViewerPageState();
 }
 
-class _ImageViewerPageState extends ConsumerState<_ImageViewerPage> {
+class _ImageViewerPageState extends ConsumerState<_ImageViewerPage>
+    with SingleTickerProviderStateMixin {
+  /// 最大放大倍数。
+  static const double _maxScale = 4;
+
+  /// 双击放大到的倍数。
+  static const double _doubleTapScale = 2.5;
+
   late final CloudreveApi _api = widget.api ?? ref.read(apiProvider);
+
+  /// 缩放 / 平移矩阵。
+  final TransformationController _transform = TransformationController();
+
+  late final AnimationController _zoomAnimation = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 180),
+  );
+  Animation<Matrix4>? _zoomTween;
+
+  /// 最近一次双击的位置（局部坐标），用于以该点为中心放大。
+  Offset? _doubleTapPosition;
+
+  /// 当前是否已放大（避免重复通知父级）。
+  bool _zoomed = false;
 
   ImageTask? _task;
   Uint8List? _bytes;
@@ -171,6 +222,14 @@ class _ImageViewerPageState extends ConsumerState<_ImageViewerPage> {
   void initState() {
     super.initState();
     _start();
+    _zoomAnimation.addListener(_applyZoomTween);
+  }
+
+  @override
+  void dispose() {
+    _zoomAnimation.dispose();
+    _transform.dispose();
+    super.dispose();
   }
 
   void _start() {
@@ -203,16 +262,74 @@ class _ImageViewerPageState extends ConsumerState<_ImageViewerPage> {
     _start();
   }
 
+  /// 把放大状态同步给父级：只在跨过阈值时通知，避免每帧 setState。
+  void _syncZoomState() {
+    final zoomed = _transform.value.getMaxScaleOnAxis() > 1.01;
+    if (zoomed == _zoomed) return;
+    _zoomed = zoomed;
+    widget.onZoomChanged(zoomed);
+  }
+
+  /// 双击：已放大则还原，否则以双击点为中心放大。
+  void _handleDoubleTap() {
+    if (_transform.value.getMaxScaleOnAxis() > 1.01) {
+      _animateZoomTo(Matrix4.identity());
+      return;
+    }
+    final size = context.size ?? MediaQuery.sizeOf(context);
+    if (size.isEmpty) return;
+    final focal = _doubleTapPosition ?? size.center(Offset.zero);
+    _animateZoomTo(_zoomMatrixAt(focal, size, _doubleTapScale));
+  }
+
+  /// 以 [focal] 为中心缩放到 [scale]，并把平移量限制在图片边界内。
+  Matrix4 _zoomMatrixAt(Offset focal, Size size, double scale) {
+    // 缩放后左上角允许的平移范围是 [extent * (1 - scale), 0]。
+    double clampAxis(double value, double extent) =>
+        value.clamp(extent * (1 - scale), 0.0).toDouble();
+
+    final dx = clampAxis(focal.dx * (1 - scale), size.width);
+    final dy = clampAxis(focal.dy * (1 - scale), size.height);
+    return Matrix4.identity()
+      ..translate(dx, dy)
+      ..scale(scale);
+  }
+
+  void _animateZoomTo(Matrix4 target) {
+    _zoomTween = Matrix4Tween(begin: _transform.value, end: target).animate(
+      CurvedAnimation(parent: _zoomAnimation, curve: Curves.easeOut),
+    );
+    _zoomAnimation.forward(from: 0);
+  }
+
+  void _applyZoomTween() {
+    final tween = _zoomTween;
+    if (tween == null) return;
+    _transform.value = tween.value;
+    _syncZoomState();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_failed) return _ImageViewerError(onRetry: _retry);
     final bytes = _bytes;
     if (bytes != null) {
-      return Image.memory(
-        bytes,
-        fit: BoxFit.contain,
-        width: double.infinity,
-        height: double.infinity,
+      return GestureDetector(
+        onDoubleTapDown: (details) =>
+            _doubleTapPosition = details.localPosition,
+        onDoubleTap: _handleDoubleTap,
+        child: InteractiveViewer(
+          transformationController: _transform,
+          minScale: 1,
+          maxScale: _maxScale,
+          onInteractionEnd: (_) => _syncZoomState(),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.contain,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
       );
     }
     final task = _task;
