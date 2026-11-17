@@ -16,7 +16,6 @@ class SidebarPanel extends ConsumerStatefulWidget {
   final ValueChanged<String> onNavigate;
   final VoidCallback onPlaceholder;
   final VoidCallback onCycleTheme;
-  final VoidCallback onManageSites;
   final VoidCallback? onDownloads;
   final VoidCallback? onTrash;
   final ValueChanged<FileCategory>? onCategory;
@@ -29,7 +28,6 @@ class SidebarPanel extends ConsumerStatefulWidget {
     required this.onNavigate,
     required this.onPlaceholder,
     required this.onCycleTheme,
-    required this.onManageSites,
     this.onDownloads,
     this.onTrash,
     this.onCategory,
@@ -137,8 +135,6 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
           icon: Icons.brightness_6_outlined,
           label: '主题（${_themeLabel(ref.watch(settingsProvider).themeMode)}）',
           onTap: widget.onCycleTheme),
-      _SidebarItem(
-          icon: Icons.dns_outlined, label: '管理站点', onTap: widget.onManageSites),
       _SidebarItem(
           icon: Icons.settings_outlined,
           label: '设置',

@@ -9,6 +9,7 @@ import '../widgets/common/section_title.dart';
 import '../widgets/common/settings_card.dart';
 import '../widgets/settings/theme_setting_row.dart';
 import 'settings_page.dart';
+import 'site_list_page.dart';
 
 /// 统一设置入口（悬浮侧边栏 →「设置」）。
 ///
@@ -42,6 +43,21 @@ class SettingsHubPage extends ConsumerWidget {
         children: [
           const SectionTitle.settings('外观'),
           const SettingsCard(children: [ThemeSettingRow()]),
+          const SizedBox(height: 20),
+          const SectionTitle.settings('站点'),
+          SettingsCard(
+            children: [
+              SettingsTile(
+                icon: Icons.dns_outlined,
+                title: '管理站点',
+                subtitle: '添加、切换、编辑或删除站点',
+                trailing: const SettingsChevron(),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SiteListPage()),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           const SectionTitle.settings('下载'),
           SettingsCard(

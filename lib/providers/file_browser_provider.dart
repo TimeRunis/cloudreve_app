@@ -15,6 +15,8 @@ class FileBrowserState {
   /// grid | list
   final String viewMode;
   final bool thumbnails;
+
+  /// 每页条数（首页 / 搜索 / 分类都会带给服务端，改动即重新拉取）。
   final int pageSize;
 
   /// 排序 key；空串表示不指定排序（沿用服务端默认）。
@@ -27,7 +29,7 @@ class FileBrowserState {
     this.pathSegments = const [],
     this.viewMode = 'grid',
     this.thumbnails = true,
-    this.pageSize = 50,
+    this.pageSize = 500,
     this.sortKey = '',
     this.selectedPaths = const {},
   });

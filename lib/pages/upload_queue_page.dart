@@ -7,6 +7,7 @@ import '../models/upload_task.dart';
 import '../providers/settings_provider.dart';
 import '../providers/upload_provider.dart';
 import '../widgets/common/empty_view.dart';
+import '../widgets/upload/upload_menu_popup.dart';
 import '../widgets/upload/upload_queue_app_bar.dart';
 import '../widgets/upload/upload_task_tile.dart';
 
@@ -88,19 +89,19 @@ class _UploadQueuePageState extends ConsumerState<UploadQueuePage> {
         );
   }
 
-  void _handleMenu(String value) {
+  void _handleMenu(UploadMenuAction action) {
     final manager = ref.read(uploadManagerProvider).manager;
-    switch (value) {
-      case 'overwrite':
+    switch (action) {
+      case UploadMenuAction.overwrite:
         manager.setOverwrite(!manager.overwrite);
         break;
-      case 'hide_completed':
+      case UploadMenuAction.hideCompleted:
         setState(() => _hideCompleted = !_hideCompleted);
         break;
-      case 'retry_all':
+      case UploadMenuAction.retryAll:
         manager.retryAllFailed();
         break;
-      case 'clear_completed':
+      case UploadMenuAction.clearCompleted:
         manager.clearCompleted();
         break;
     }

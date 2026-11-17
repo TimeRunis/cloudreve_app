@@ -24,7 +24,6 @@ Future<void> showHomeSidebar(
   required VoidCallback onPlaceholder,
   required VoidCallback onCycleTheme,
   required ValueChanged<FileCategory> onCategory,
-  required VoidCallback onManageSites,
   required VoidCallback onDownloads,
   required VoidCallback onTrash,
   required VoidCallback onMyShares,
@@ -60,10 +59,6 @@ Future<void> showHomeSidebar(
         onCategory: (category) {
           close();
           onCategory(category);
-        },
-        onManageSites: () {
-          close();
-          onManageSites();
         },
         onDownloads: () {
           close();

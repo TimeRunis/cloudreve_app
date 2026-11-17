@@ -35,7 +35,6 @@ import '../widgets/viewer/video_player_viewer.dart';
 import 'downloads_page.dart';
 import 'my_shares_page.dart';
 import 'settings_hub_page.dart';
-import 'site_list_page.dart';
 import 'trash_page.dart';
 import 'upload_queue_page.dart';
 
@@ -78,13 +77,39 @@ class _HomePageState extends ConsumerState<HomePage> {
   /// 当前目录路径（`/a/b`，根为 `/`）。
   String get _path => '/${_browse.pathSegments.join('/')}';
 
-  /// 当前目录 + 排序键组成的查询（排序变化会自动重新拉取）。
+  /// 当前排序选项（空 key 时为 null，表示沿用服务端默认）。
+  SortOption? _sort() => sortOptionFor(_browse.sortKey);
+
+  /// 当前目录 + 排序 + 分页组成的查询（任一变化都会自动重新拉取）。
   DirectoryQuery get _directoryQuery {
-    final opt = sortOptionFor(_browse.sortKey);
+    final sort = _sort();
     return DirectoryQuery(
       _path,
-      orderBy: opt?.orderBy,
-      orderDirection: opt?.orderDirection,
+      orderBy: sort?.orderBy,
+      orderDirection: sort?.orderDirection,
+      pageSize: _browse.pageSize,
+    );
+  }
+
+  /// 搜索查询：关键字 + 排序 + 分页。
+  SearchQuery get _searchQuery {
+    final sort = _sort();
+    return SearchQuery(
+      _searchKeyword.trim(),
+      orderBy: sort?.orderBy,
+      orderDirection: sort?.orderDirection,
+      pageSize: _browse.pageSize,
+    );
+  }
+
+  /// 分类查询：分类 + 排序 + 分页（仅在分类视图下使用）。
+  CategoryQuery get _categoryQuery {
+    final sort = _sort();
+    return CategoryQuery(
+      _category!,
+      orderBy: sort?.orderBy,
+      orderDirection: sort?.orderDirection,
+      pageSize: _browse.pageSize,
     );
   }
 
@@ -155,18 +180,17 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _refresh() {
-    final keyword = _searchKeyword.trim();
     final category = _category;
     if (_isSearchActive) {
       if (category != null) {
-        ref.invalidate(categoryFilesProvider(category));
+        ref.invalidate(categoryFilesProvider(_categoryQuery));
       } else {
-        ref.invalidate(searchFilesProvider(keyword));
+        ref.invalidate(searchFilesProvider(_searchQuery));
       }
       return;
     }
     if (category != null) {
-      ref.invalidate(categoryFilesProvider(category));
+      ref.invalidate(categoryFilesProvider(_categoryQuery));
     } else {
       ref.invalidate(directoryProvider(_directoryQuery));
     }
@@ -179,13 +203,16 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (_isSearchActive) {
       if (category != null) {
         final files =
-            ref.read(categoryFilesProvider(category)).valueOrNull ?? const [];
+            ref.read(categoryFilesProvider(_categoryQuery)).valueOrNull ??
+                const [];
         return _filterByQuery(files, keyword);
       }
-      return ref.read(searchFilesProvider(keyword)).valueOrNull ?? const [];
+      return ref.read(searchFilesProvider(_searchQuery)).valueOrNull ??
+          const [];
     }
     if (category != null) {
-      return ref.read(categoryFilesProvider(category)).valueOrNull ?? const [];
+      return ref.read(categoryFilesProvider(_categoryQuery)).valueOrNull ??
+          const [];
     }
     final listing = ref.read(directoryProvider(_directoryQuery)).valueOrNull;
     return listing?.files ?? const <FileItem>[];
@@ -264,17 +291,10 @@ class _HomePageState extends ConsumerState<HomePage> {
       onPlaceholder: () => _toast('功能暂未实现'),
       onCycleTheme: _cycleTheme,
       onCategory: _openCategory,
-      onManageSites: _openManageSites,
       onDownloads: _openDownloads,
       onTrash: _openTrash,
       onMyShares: _openMyShares,
       onSettings: _openSettings,
-    );
-  }
-
-  void _openManageSites() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SiteListPage()),
     );
   }
 
@@ -686,7 +706,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     if (_isSearchActive) {
       if (category != null) {
-        final filesAsync = ref.watch(categoryFilesProvider(category));
+        final filesAsync = ref.watch(categoryFilesProvider(_categoryQuery));
         return filesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ErrorView(
@@ -699,7 +719,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         );
       }
-      final filesAsync = ref.watch(searchFilesProvider(keyword));
+      final filesAsync = ref.watch(searchFilesProvider(_searchQuery));
       return filesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
@@ -711,7 +731,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     if (category != null) {
-      final filesAsync = ref.watch(categoryFilesProvider(category));
+      final filesAsync = ref.watch(categoryFilesProvider(_categoryQuery));
       return filesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(

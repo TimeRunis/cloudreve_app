@@ -50,7 +50,6 @@ class _ViewPanelState extends State<ViewPanel> {
                 options: const [
                   (Icons.grid_view, '网格', 'grid'),
                   (Icons.view_list, '列表', 'list'),
-                  (Icons.image_outlined, '画廊', 'gallery'),
                 ],
                 value: _viewMode,
                 onChanged: (v) {
