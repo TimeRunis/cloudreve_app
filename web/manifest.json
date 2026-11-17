@@ -1,6 +1,6 @@
 {
-    "name": "speed_app",
-    "short_name": "speed_app",
+    "name": "Cloudreve",
+    "short_name": "Cloudreve",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
