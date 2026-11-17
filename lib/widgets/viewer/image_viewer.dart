@@ -46,6 +46,12 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
   /// 当前页是否处于放大状态：放大时禁用翻页，手势改为拖拽平移图片。
   bool _zoomed = false;
 
+  /// 当前按在画面上的手指数：≥2 时视为双指缩放，立即锁定翻页。
+  int _activePointers = 0;
+
+  /// 是否锁定左右翻页：放大中，或正在双指操作。
+  bool get _pageLocked => _zoomed || _activePointers > 1;
+
   @override
   void initState() {
     super.initState();
@@ -79,47 +85,79 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
     setState(() => _zoomed = zoomed);
   }
 
+  /// 手指数变化：第二根手指落下的瞬间就禁用翻页，
+  /// 否则双指捏合时第一根手指移动超过触发阈值会被 PageView 当成翻页。
+  void _handlePointerCount(int delta) {
+    final next = (_activePointers + delta).clamp(0, 10);
+    if (next == _activePointers) return;
+    final wasLocked = _pageLocked;
+    _activePointers = next;
+    final locked = _pageLocked;
+    if (wasLocked == locked) return;
+    setState(() {});
+    if (locked) _snapToNearestPage();
+  }
+
+  /// 锁定翻页时如果页面停在两页之间，等重建完成后吸附到最近的一页。
+  void _snapToNearestPage() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.hasClients) return;
+      final page = _controller.page;
+      if (page == null) return;
+      final nearest = page.roundToDouble();
+      if ((page - nearest).abs() > 0.01) {
+        _controller.jumpToPage(nearest.toInt());
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final current = widget.images[_index];
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _controller,
-            physics: _zoomed
-                ? const NeverScrollableScrollPhysics()
-                : const PageScrollPhysics(),
-            itemCount: widget.images.length,
-            onPageChanged: _onPageChanged,
-            itemBuilder: (context, i) => _ImageViewerPage(
-              file: widget.images[i],
-              api: _api,
-              onZoomChanged: _handleZoomChanged,
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  Text(
-                    '${_index + 1} / ${widget.images.length}',
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                  const Spacer(),
-                  _transparentBtn(
-                      Icons.close, () => Navigator.of(context).pop()),
-                  _transparentBtn(
-                      Icons.info_outline, () => _showDetail(current)),
-                  _transparentBtn(
-                      Icons.file_download_outlined, () => _download(current)),
-                ],
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _handlePointerCount(1),
+      onPointerUp: (_) => _handlePointerCount(-1),
+      onPointerCancel: (_) => _handlePointerCount(-1),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            PageView.builder(
+              controller: _controller,
+              physics: _pageLocked
+                  ? const NeverScrollableScrollPhysics()
+                  : const PageScrollPhysics(),
+              itemCount: widget.images.length,
+              onPageChanged: _onPageChanged,
+              itemBuilder: (context, i) => _ImageViewerPage(
+                file: widget.images[i],
+                api: _api,
+                onZoomChanged: _handleZoomChanged,
               ),
             ),
-          ),
-        ],
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    Text(
+                      '${_index + 1} / ${widget.images.length}',
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                    const Spacer(),
+                    _transparentBtn(
+                        Icons.close, () => Navigator.of(context).pop()),
+                    _transparentBtn(
+                        Icons.info_outline, () => _showDetail(current)),
+                    _transparentBtn(
+                        Icons.file_download_outlined, () => _download(current)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
