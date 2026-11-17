@@ -9,12 +9,17 @@ import '../models/file_item.dart';
 import '../models/share.dart';
 import '../models/site.dart';
 import '../providers/download_provider.dart';
+import '../widgets/common/error_view.dart';
+import '../widgets/common/section_title.dart';
+import '../widgets/common/toolbar_action.dart';
 import '../widgets/file/file_card.dart';
 import '../widgets/file/file_icon.dart';
+import '../widgets/file/view_panel.dart';
+import '../widgets/share/share_folder_card.dart';
+import '../widgets/share/share_password_view.dart';
 import '../widgets/sheet/file_info_sheet.dart';
 import '../widgets/viewer/image_viewer.dart';
 import '../widgets/viewer/video_player_viewer.dart';
-import '../widgets/file/view_panel.dart';
 
 /// 分享访问页：支持公开分享和带密码分享，可浏览分享目录/打开文件。
 class ShareViewerPage extends ConsumerStatefulWidget {
@@ -110,9 +115,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       if (!mounted) return;
       setState(() {
         _checking = false;
-        _fatalError = e is ApiException
-            ? '分享失效或链接不存在'
-            : '无法打开分享链接，请检查链接或网络';
+        _fatalError = e is ApiException ? '分享失效或链接不存在' : '无法打开分享链接，请检查链接或网络';
       });
     }
   }
@@ -170,8 +173,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       _loadError = null;
     });
     try {
-      final uri = shareUri(widget.shareId,
-          password: _password, path: _path);
+      final uri = shareUri(widget.shareId, password: _password, path: _path);
       final listing = await _api.listFiles(uri, pageSize: _pageSize);
       if (!mounted || seq != _fileLoadSeq) return;
       setState(() {
@@ -194,10 +196,10 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   }
 
   void _openViewPanel() {
-    final box =
-        _viewButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final box = _viewButtonKey.currentContext?.findRenderObject() as RenderBox?;
     final size = MediaQuery.of(context).size;
-    final fallbackTop = MediaQuery.of(context).padding.top + kToolbarHeight + 52;
+    final fallbackTop =
+        MediaQuery.of(context).padding.top + kToolbarHeight + 52;
     final anchorTop = box == null
         ? fallbackTop
         : box.localToGlobal(Offset.zero).dy + box.size.height + 4;
@@ -273,9 +275,8 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   }
 
   Future<void> _downloadSelected() async {
-    final selectedFiles = _files
-        .where((f) => _selected.contains(f.path) && !f.isFolder)
-        .toList();
+    final selectedFiles =
+        _files.where((f) => _selected.contains(f.path) && !f.isFolder).toList();
     if (selectedFiles.isEmpty) {
       _toast('文件夹打包下载暂不支持');
       return;
@@ -368,8 +369,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
         elevation: 0,
         leading: IconButton(
           tooltip: '返回',
-          icon: Icon(Icons.close,
-              size: 18, color: colors.textSecondary),
+          icon: Icon(Icons.close, size: 18, color: colors.textSecondary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -454,18 +454,18 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _ToolbarAction(
+                  ToolbarAction(
                     key: _viewButtonKey,
                     icon: Icons.grid_view_outlined,
                     tooltip: '切换视图',
                     onTap: _openViewPanel,
                   ),
-                  _ToolbarAction(
+                  ToolbarAction(
                     icon: Icons.file_download_outlined,
                     tooltip: '下载',
                     onTap: _handleDownloadTap,
                   ),
-                  _ToolbarAction(
+                  ToolbarAction(
                     icon: Icons.refresh,
                     tooltip: '刷新',
                     onTap: _refresh,
@@ -486,10 +486,13 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_fatalError != null) {
-      return _ErrorView(message: _fatalError!);
+      return ErrorView(
+        message: _fatalError!,
+        icon: Icons.link_off_outlined,
+      );
     }
     if (_locked) {
-      return _PasswordView(
+      return SharePasswordView(
         shareName: _info?.name ?? '分享内容',
         initialPassword: _password ?? '',
         errorText: _loadError,
@@ -501,15 +504,18 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_loadError != null && _files.isEmpty) {
-      return _ErrorView(message: _loadError!, onRetry: _loadFiles);
+      return ErrorView(
+        message: _loadError!,
+        icon: Icons.link_off_outlined,
+        onRetry: _loadFiles,
+      );
     }
     if (_files.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.folder_open_outlined,
-                size: 48, color: colors.textMuted),
+            Icon(Icons.folder_open_outlined, size: 48, color: colors.textMuted),
             const SizedBox(height: 8),
             Text('此分享没有可显示的内容',
                 style: TextStyle(fontSize: 14, color: colors.textSecondary)),
@@ -530,8 +536,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
         children: [
           Text(
             '已选择 ${_selected.length} 项',
-            style: TextStyle(
-                fontSize: 14, color: colors.textPrimary),
+            style: TextStyle(fontSize: 14, color: colors.textPrimary),
           ),
           const Spacer(),
           TextButton.icon(
@@ -582,8 +587,8 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
             ),
             subtitle: Text(file.isFolder ? '文件夹' : formatSize(file.size),
                 style: TextStyle(fontSize: 12, color: colors.textMuted)),
-            trailing: Icon(Icons.chevron_right,
-                size: 18, color: colors.textFaint),
+            trailing:
+                Icon(Icons.chevron_right, size: 18, color: colors.textFaint),
           );
         },
       );
@@ -595,7 +600,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       children: [
         if (folders.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _ShareSectionTitle('文件夹'),
+          const SectionTitle.content('文件夹'),
           const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
@@ -609,7 +614,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
             itemCount: folders.length,
             itemBuilder: (context, i) {
               final folder = folders[i];
-              return _ShareFolderCard(
+              return ShareFolderCard(
                 folder: folder,
                 isSelected: _selected.contains(folder.path),
                 onOpen: () => _open(folder),
@@ -620,7 +625,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
         ],
         if (fileItems.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const _ShareSectionTitle('文件'),
+          const SectionTitle.content('文件'),
           const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
@@ -646,296 +651,6 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _ShareSectionTitle extends StatelessWidget {
-  final String text;
-
-  const _ShareSectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: context.appColors.textPrimary,
-      ),
-    );
-  }
-}
-
-/// 与主页文件夹卡片一致的横向卡片。
-class _ShareFolderCard extends StatelessWidget {
-  final FileItem folder;
-  final bool isSelected;
-  final VoidCallback onOpen;
-  final VoidCallback onLongPress;
-
-  const _ShareFolderCard({
-    required this.folder,
-    required this.isSelected,
-    required this.onOpen,
-    required this.onLongPress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return Material(
-      color: colors.surfaceMuted,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onOpen,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SizedBox(
-            height: 48,
-            child: Row(
-              children: [
-                isSelected
-                    ? const SelectionCheck(size: 18)
-                    : Icon(Icons.folder,
-                        size: 18, color: colors.textSecondary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      folder.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14, color: colors.textPrimary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ToolbarAction extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final bool last;
-
-  const _ToolbarAction({
-    super.key,
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.last = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            border: last
-                ? null
-                : Border(
-                    right: BorderSide(color: colors.toolbarBorder)),
-          ),
-          child: Icon(icon, size: 18, color: colors.textSecondary),
-        ),
-      ),
-    );
-  }
-}
-
-class _PasswordView extends StatefulWidget {
-  final String shareName;
-  final String initialPassword;
-  final String? errorText;
-  final bool loading;
-  final ValueChanged<String> onSubmit;
-
-  const _PasswordView({
-    required this.shareName,
-    required this.initialPassword,
-    this.errorText,
-    this.loading = false,
-    required this.onSubmit,
-  });
-
-  @override
-  State<_PasswordView> createState() => _PasswordViewState();
-}
-
-class _PasswordViewState extends State<_PasswordView> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initialPassword);
-  bool _obscure = true;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: colors.surfaceMuted,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.lock_outline,
-                    size: 28, color: colors.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '该分享已加密',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.shareName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: colors.textMuted),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _controller,
-                obscureText: _obscure,
-                enabled: !widget.loading,
-                decoration: InputDecoration(
-                  hintText: '请输入访问密码',
-                  prefixIcon: Icon(Icons.password,
-                      size: 18, color: colors.textMuted),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      size: 18,
-                      color: colors.textMuted,
-                    ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                  ),
-                  filled: true,
-                  fillColor: colors.surfaceMuted,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                  ),
-                ),
-                onSubmitted: (_) => _submit(),
-              ),
-              if (widget.errorText != null) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    widget.errorText!,
-                    style: TextStyle(
-                        fontSize: 12, color: Theme.of(context).colorScheme.error),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: widget.loading ? null : _submit,
-                  child: Text(widget.loading ? '校验中…' : '进入分享'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _submit() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    widget.onSubmit(text);
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback? onRetry;
-
-  const _ErrorView({required this.message, this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.link_off_outlined, size: 48, color: colors.textMuted),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: colors.textSecondary),
-          ),
-          if (onRetry != null) ...[
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('重试'),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
