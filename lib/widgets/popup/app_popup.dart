@@ -48,16 +48,19 @@ enum AppPopupPlacement { below, above, left, right }
 /// - [placement] 指定相对锚点的方向（上/下/左/右），默认在下方；
 /// - 首选方向放不下时自动换到对侧或其它方向；
 /// - 无论落在哪个方向，最终都会被夹回屏幕内，不会溢出；
-/// - [alignEnd] 为 true 时，上下方向下右对齐锚点（菜单按钮在右侧更自然）；
+/// - [offset] 在定位结果上再平移一段距离（例如侧边栏要贴到屏幕左上角）；
+/// - [transitionBuilder] 可替换默认的淡入缩放动画（例如侧边栏用左滑）；
 /// - 返回点击项通过 `Navigator.pop(value)` 传出的值。
 Future<T?> showAppPopup<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   GlobalKey? anchorKey,
   AppPopupPlacement placement = AppPopupPlacement.below,
-  bool alignEnd = true,
   double gap = 6,
+  Offset offset = Offset.zero,
   bool barrierDismissible = true,
+  Color barrierColor = Colors.transparent,
+  RouteTransitionsBuilder? transitionBuilder,
 }) {
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
   final anchorBox = anchorKey?.currentContext?.findRenderObject() as RenderBox?;
@@ -76,7 +79,7 @@ Future<T?> showAppPopup<T>({
     context: context,
     barrierDismissible: barrierDismissible,
     barrierLabel: 'app-popup',
-    barrierColor: Colors.transparent,
+    barrierColor: barrierColor,
     transitionDuration: const Duration(milliseconds: 120),
     pageBuilder: (dialogContext, animation, secondaryAnimation) {
       final rect = anchorRect;
@@ -97,8 +100,8 @@ Future<T?> showAppPopup<T>({
                 delegate: _AnchorPopupLayout(
                   anchorRect: rect,
                   gap: gap,
-                  alignEnd: alignEnd,
                   placement: placement,
+                  offset: offset,
                 ),
                 child: builder(dialogContext),
               ),
@@ -106,17 +109,18 @@ Future<T?> showAppPopup<T>({
         ],
       );
     },
-    transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
-      final curved =
-          CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-      return FadeTransition(
-        opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
-          child: child,
-        ),
-      );
-    },
+    transitionBuilder: transitionBuilder ??
+        (dialogContext, animation, secondaryAnimation, child) {
+          final curved =
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+              child: child,
+            ),
+          );
+        },
   );
 }
 
@@ -125,14 +129,16 @@ class _AnchorPopupLayout extends SingleChildLayoutDelegate {
   _AnchorPopupLayout({
     required this.anchorRect,
     required this.gap,
-    required this.alignEnd,
     required this.placement,
+    this.offset = Offset.zero,
   });
 
   final Rect anchorRect;
   final double gap;
-  final bool alignEnd;
   final AppPopupPlacement placement;
+
+  /// 在最终位置上追加的平移量（仍会经过屏幕边界夹紧）。
+  final Offset offset;
 
   static const double _margin = 8;
 
@@ -200,37 +206,49 @@ class _AnchorPopupLayout extends SingleChildLayoutDelegate {
 
     double left;
     double top;
+    // 垂直于弹出方向的那一轴，默认与锚点居中对齐；
+    // 居中后越界时才在下方统一夹紧，相当于自动平移。
+    final centerX = anchorRect.center.dx - childSize.width / 2;
+    final centerY = anchorRect.center.dy - childSize.height / 2;
     switch (chosen) {
       case AppPopupPlacement.below:
-        left = alignEnd ? anchorRect.right - childSize.width : anchorRect.left;
+        left = centerX;
         top = anchorRect.bottom + gap;
         break;
       case AppPopupPlacement.above:
-        left = alignEnd ? anchorRect.right - childSize.width : anchorRect.left;
+        left = centerX;
         top = anchorRect.top - gap - childSize.height;
         break;
       case AppPopupPlacement.right:
         left = anchorRect.right + gap;
-        top = anchorRect.top;
+        top = centerY;
         break;
       case AppPopupPlacement.left:
         left = anchorRect.left - gap - childSize.width;
-        top = anchorRect.top;
+        top = centerY;
         break;
     }
 
     final maxLeft = size.width - childSize.width - _margin;
     final maxTop = size.height - childSize.height - _margin;
-    final clampedLeft =
-        left.clamp(_margin, maxLeft < _margin ? _margin : maxLeft);
-    final clampedTop = top.clamp(_margin, maxTop < _margin ? _margin : maxTop);
-    return Offset(clampedLeft.toDouble(), clampedTop.toDouble());
+    final limitLeft = maxLeft < _margin ? _margin : maxLeft;
+    final limitTop = maxTop < _margin ? _margin : maxTop;
+
+    double clampX(double value) => value.clamp(_margin, limitLeft).toDouble();
+    double clampY(double value) => value.clamp(_margin, limitTop).toDouble();
+
+    // 先夹紧居中结果，再叠加自定义偏移，最后再夹一次确保不出屏。
+    left = clampX(left);
+    top = clampY(top);
+    left = clampX(left + offset.dx);
+    top = clampY(top + offset.dy);
+    return Offset(left, top);
   }
 
   @override
   bool shouldRelayout(_AnchorPopupLayout oldDelegate) =>
       anchorRect != oldDelegate.anchorRect ||
       gap != oldDelegate.gap ||
-      alignEnd != oldDelegate.alignEnd ||
-      placement != oldDelegate.placement;
+      placement != oldDelegate.placement ||
+      offset != oldDelegate.offset;
 }

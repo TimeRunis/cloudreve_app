@@ -13,72 +13,13 @@ import '../popup/user_menu_popup.dart';
 
 /// 主页各类悬浮窗的启动器。
 ///
-/// 只负责弹出与定位，业务处理全部通过回调交回页面；定位方式与页面里
-/// 原有的 `showGeneralDialog`（透明遮罩 + 固定坐标）保持一致。
-const Duration _popupDuration = Duration(milliseconds: 150);
-
-/// 透明遮罩 + 固定坐标面板。
-class _Panel extends StatelessWidget {
-  final Widget child;
-  final double top;
-  final double? left;
-  final double? right;
-  final bool dismissible;
-
-  const _Panel({
-    required this.child,
-    required this.top,
-    this.left,
-    this.right,
-    this.dismissible = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        if (dismissible)
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              child: const SizedBox.expand(),
-            ),
-          ),
-        Positioned(top: top, left: left, right: right, child: child),
-      ],
-    );
-  }
-}
-
-Future<void> _showPanel(
-  BuildContext context, {
-  required String barrierLabel,
-  required double top,
-  double? left,
-  double? right,
-  required Widget Function(BuildContext dialogContext) builder,
-  Color barrierColor = Colors.transparent,
-  bool dismissible = true,
-}) {
-  return showGeneralDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: barrierLabel,
-    barrierColor: barrierColor,
-    transitionDuration: _popupDuration,
-    pageBuilder: (dialogContext, animation, secondaryAnimation) => _Panel(
-      top: top,
-      left: left,
-      right: right,
-      dismissible: dismissible,
-      child: builder(dialogContext),
-    ),
-  );
-}
+/// 统一走 [showAppPopup]：以触发按钮 [anchorKey] 为锚点定位，
+/// 越界会被夹回屏幕内；业务处理全部通过回调交回页面。
 
 /// 侧边栏（从左滑入，点击空白关闭）。
 Future<void> showHomeSidebar(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required String title,
   required ValueChanged<String> onNavigate,
   required VoidCallback onPlaceholder,
@@ -90,13 +31,12 @@ Future<void> showHomeSidebar(
   required VoidCallback onMyShares,
   required VoidCallback onSettings,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return showGeneralDialog<void>(
+  return showAppPopup<void>(
     context: context,
-    barrierDismissible: true,
-    barrierLabel: 'sidebar',
-    barrierColor: Colors.transparent,
-    transitionDuration: _popupDuration,
+    anchorKey: anchorKey,
+    gap: 8,
+    // 侧边栏是特殊面板：贴回屏幕左上角（左侧 16，顶部状态栏下 16）。
+    offset: const Offset(8, -48),
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final offset = Tween<Offset>(
         begin: const Offset(-0.2, 0),
@@ -104,58 +44,44 @@ Future<void> showHomeSidebar(
       ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
       return SlideTransition(position: offset, child: child);
     },
-    pageBuilder: (dialogContext, animation, secondaryAnimation) {
+    builder: (dialogContext) {
       void close() => Navigator.of(dialogContext).pop();
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: close,
-              child: const SizedBox.expand(),
-            ),
-          ),
-          Positioned(
-            top: topPad + 16,
-            left: 16,
-            child: SidebarPanel(
-              title: title,
-              onNavigate: (path) {
-                close();
-                onNavigate(path);
-              },
-              onPlaceholder: () {
-                close();
-                onPlaceholder();
-              },
-              // 主题切换不关闭侧边栏，与原有行为一致。
-              onCycleTheme: onCycleTheme,
-              onCategory: (category) {
-                close();
-                onCategory(category);
-              },
-              onManageSites: () {
-                close();
-                onManageSites();
-              },
-              onDownloads: () {
-                close();
-                onDownloads();
-              },
-              onTrash: () {
-                close();
-                onTrash();
-              },
-              onMyShares: () {
-                close();
-                onMyShares();
-              },
-              onSettings: () {
-                close();
-                onSettings();
-              },
-            ),
-          ),
-        ],
+      return SidebarPanel(
+        title: title,
+        onNavigate: (path) {
+          close();
+          onNavigate(path);
+        },
+        onPlaceholder: () {
+          close();
+          onPlaceholder();
+        },
+        // 主题切换不关闭侧边栏，与原有行为一致。
+        onCycleTheme: onCycleTheme,
+        onCategory: (category) {
+          close();
+          onCategory(category);
+        },
+        onManageSites: () {
+          close();
+          onManageSites();
+        },
+        onDownloads: () {
+          close();
+          onDownloads();
+        },
+        onTrash: () {
+          close();
+          onTrash();
+        },
+        onMyShares: () {
+          close();
+          onMyShares();
+        },
+        onSettings: () {
+          close();
+          onSettings();
+        },
       );
     },
   );
@@ -164,15 +90,13 @@ Future<void> showHomeSidebar(
 /// 右上角用户菜单。
 Future<void> showHomeUserMenu(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required User? user,
   required ValueChanged<UserMenuAction> onAction,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'user-menu',
-    top: topPad + kToolbarHeight + 8,
-    right: 16,
+  return showAppPopup<void>(
+    context: context,
+    anchorKey: anchorKey,
     builder: (dialogContext) => UserMenuPopup(
       user: user,
       onAction: (action) {
@@ -186,14 +110,12 @@ Future<void> showHomeUserMenu(
 /// 「+」新建/上传菜单。
 Future<void> showHomeAddMenu(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required ValueChanged<AddMenuAction> onAction,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'add-menu',
-    top: topPad + kToolbarHeight + 8,
-    right: 56,
+  return showAppPopup<void>(
+    context: context,
+    anchorKey: anchorKey,
     builder: (dialogContext) => AddMenuPopup(
       onAction: (action) {
         Navigator.of(dialogContext).pop();
@@ -206,17 +128,13 @@ Future<void> showHomeAddMenu(
 /// 顶部搜索弹窗（遮罩加深，点击空白关闭）。
 Future<void> showHomeSearch(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required ValueChanged<String> onSubmitted,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'search',
+  return showAppPopup<void>(
+    context: context,
+    anchorKey: anchorKey,
     barrierColor: Colors.black45,
-    dismissible: false,
-    top: topPad + 12,
-    left: 12,
-    right: 12,
     builder: (dialogContext) => SearchPopup(
       onSubmitted: (query) {
         Navigator.of(dialogContext).pop();
@@ -226,7 +144,7 @@ Future<void> showHomeSearch(
   );
 }
 
-/// 视图设置面板（以 [anchorKey] 为锚点弹出，越界会被夹回屏幕内）。
+/// 视图设置面板。
 Future<void> showHomeViewPanel(
   BuildContext context, {
   required GlobalKey anchorKey,
@@ -240,7 +158,6 @@ Future<void> showHomeViewPanel(
   return showAppPopup<void>(
     context: context,
     anchorKey: anchorKey,
-    placement: AppPopupPlacement.below,
     builder: (_) => ViewPanel(
       initialViewMode: viewMode,
       initialThumbnails: thumbnails,
@@ -255,14 +172,12 @@ Future<void> showHomeViewPanel(
 /// 面包屑末尾目录的操作菜单。
 Future<void> showHomeFolderOperations(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required ValueChanged<FileOperation> onAction,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'breadcrumb',
-    top: topPad + kToolbarHeight + 40,
-    left: 16,
+  return showAppPopup<void>(
+    context: context,
+    anchorKey: anchorKey,
     builder: (dialogContext) => FileOperationsPopup(
       kind: FileOperationKind.folder,
       onAction: (action) {
@@ -276,15 +191,13 @@ Future<void> showHomeFolderOperations(
 /// 多选模式下的操作菜单。
 Future<void> showHomeSelectionOperations(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required FileOperationKind kind,
   required ValueChanged<FileOperation> onAction,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'selection-menu',
-    top: topPad + kToolbarHeight + 8,
-    right: 8,
+  return showAppPopup<void>(
+    context: context,
+    anchorKey: anchorKey,
     builder: (dialogContext) => FileOperationsPopup(
       kind: kind,
       onAction: (action) {
@@ -298,14 +211,12 @@ Future<void> showHomeSelectionOperations(
 /// 工具栏「更多」菜单。
 Future<void> showHomeMoreMenu(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required ValueChanged<MoreMenuAction> onAction,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'more-menu',
-    top: topPad + kToolbarHeight + 40,
-    right: 8,
+  return showAppPopup<void>(
+    context: context,
+    anchorKey: anchorKey,
     builder: (dialogContext) => MoreMenuPopup(
       onAction: (action) {
         Navigator.of(dialogContext).pop();

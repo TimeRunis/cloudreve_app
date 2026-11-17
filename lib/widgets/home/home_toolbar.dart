@@ -17,6 +17,12 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
   /// 「视图」按钮的 key，视图面板以它为锚点。
   final Key? viewButtonKey;
 
+  /// 面包屑的 key，目录操作菜单以它为锚点。
+  final Key? breadcrumbKey;
+
+  /// 「更多」按钮的 key，更多菜单以它为锚点。
+  final Key? moreButtonKey;
+
   /// 点击面包屑层级：0 = 根，i = 保留前 i 段。
   final ValueChanged<int> onNavigate;
   final VoidCallback onToggleView;
@@ -30,6 +36,8 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
     this.category,
     this.sortButtonKey,
     this.viewButtonKey,
+    this.breadcrumbKey,
+    this.moreButtonKey,
     required this.onNavigate,
     required this.onToggleView,
     required this.onSort,
@@ -52,6 +60,7 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           Expanded(
             child: Breadcrumb(
+              key: breadcrumbKey,
               segments: segments,
               category: category,
               onNavigate: onNavigate,
@@ -74,6 +83,7 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
                 onTap: onSort,
               ),
               ToolbarActionItem(
+                key: moreButtonKey,
                 icon: Icons.more_horiz,
                 tooltip: '更多',
                 onTap: onMore,

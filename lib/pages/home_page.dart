@@ -57,6 +57,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   /// 工具栏「视图」按钮，作为视图面板的锚点。
   final GlobalKey _viewButtonKey = GlobalKey();
 
+  /// 以下为各悬浮窗的锚点。
+  final GlobalKey _menuButtonKey = GlobalKey();
+  final GlobalKey _userMenuKey = GlobalKey();
+  final GlobalKey _addMenuKey = GlobalKey();
+  final GlobalKey _searchKey = GlobalKey();
+  final GlobalKey _breadcrumbKey = GlobalKey();
+  final GlobalKey _selectionMoreKey = GlobalKey();
+  final GlobalKey _moreMenuKey = GlobalKey();
+
   bool get _isSearchActive => _searchKeyword.trim().isNotEmpty;
 
   /// 浏览状态（路径 / 视图 / 选择），由 [homeFileBrowserProvider] 持有。
@@ -248,6 +257,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ref.read(siteConfigProvider).valueOrNull?.title ?? 'Cloudreve';
     showHomeSidebar(
       context,
+      anchorKey: _menuButtonKey,
       title: title,
       onNavigate: _navigateTo,
       onPlaceholder: () => _toast('功能暂未实现'),
@@ -320,6 +330,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _openUserMenu() {
     showHomeUserMenu(
       context,
+      anchorKey: _userMenuKey,
       user: ref.read(authProvider).user,
       onAction: _handleUserMenuAction,
     );
@@ -344,6 +355,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _openAddMenu() {
     showHomeAddMenu(
       context,
+      anchorKey: _addMenuKey,
       onAction: (action) {
         if (action == AddMenuAction.uploadFile) {
           _pickAndUpload();
@@ -357,6 +369,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _openSearch() {
     showHomeSearch(
       context,
+      anchorKey: _searchKey,
       onSubmitted: (query) {
         final keyword = query.trim();
         if (keyword.isEmpty) return;
@@ -391,7 +404,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openBreadcrumbPopup() {
-    showHomeFolderOperations(context, onAction: _handleFileOperation);
+    showHomeFolderOperations(
+      context,
+      anchorKey: _breadcrumbKey,
+      onAction: _handleFileOperation,
+    );
   }
 
   void _openSelectionMenu() {
@@ -406,6 +423,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     showHomeSelectionOperations(
       context,
+      anchorKey: _selectionMoreKey,
       kind: kind,
       onAction: _handleFileOperation,
     );
@@ -579,6 +597,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
+            key: _menuButtonKey,
             tooltip: '菜单',
             icon: Icon(Icons.menu, color: context.appColors.textPrimary),
             onPressed: _openSidebar,
@@ -604,16 +623,19 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                   ),
                   AppBarIconButton(
+                    key: _searchKey,
                     icon: Icons.search,
                     tooltip: '搜索',
                     onPressed: _openSearch,
                   ),
                   AppBarIconButton(
+                    key: _addMenuKey,
                     icon: Icons.add,
                     tooltip: '添加',
                     onPressed: _openAddMenu,
                   ),
                   SizedBox(
+                    key: _userMenuKey,
                     width: 44,
                     height: 44,
                     child: Center(
@@ -630,6 +652,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     onPressed: _clearSelection,
                   ),
                   AppBarIconButton(
+                    key: _selectionMoreKey,
                     icon: Icons.more_horiz,
                     badgeCount: browse.selectedPaths.length,
                     badgeOffset: const Offset(4, 4),
@@ -643,6 +666,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             category: _category,
             viewButtonKey: _viewButtonKey,
             sortButtonKey: _sortButtonKey,
+            breadcrumbKey: _breadcrumbKey,
+            moreButtonKey: _moreMenuKey,
             onNavigate: _navigateToDepth,
             onToggleView: _openViewPanel,
             onSort: _openSortMenu,
@@ -729,7 +754,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openMoreMenu() {
-    showHomeMoreMenu(context, onAction: _handleMoreAction);
+    showHomeMoreMenu(
+      context,
+      anchorKey: _moreMenuKey,
+      onAction: _handleMoreAction,
+    );
   }
 
   void _handleMoreAction(MoreMenuAction action) {
