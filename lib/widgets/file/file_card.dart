@@ -11,6 +11,9 @@ import 'file_thumbnail.dart';
 class FileCard extends StatelessWidget {
   final FileItem file;
   final bool isSelected;
+
+  /// 是否处于多选状态：此时双击不再打开文件（只保留单击切换选择）。
+  final bool selectionMode;
   final bool showThumb;
   final VoidCallback onSelect;
   final VoidCallback onOpen;
@@ -22,6 +25,7 @@ class FileCard extends StatelessWidget {
     required this.isSelected,
     required this.onSelect,
     required this.onOpen,
+    this.selectionMode = false,
     this.showThumb = true,
     this.api,
   });
@@ -106,7 +110,7 @@ class FileCard extends StatelessWidget {
                 child: InkWell(
                   onTap: onSelect,
                   onLongPress: onSelect,
-                  onDoubleTap: onOpen,
+                  onDoubleTap: selectionMode ? null : onOpen,
                   child: const SizedBox.expand(),
                 ),
               ),

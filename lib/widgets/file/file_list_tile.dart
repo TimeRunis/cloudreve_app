@@ -10,6 +10,9 @@ class FileListTile extends StatelessWidget {
   final VoidCallback onSelect;
   final VoidCallback onOpen;
 
+  /// 是否处于多选状态：此时点击整行是切换选择，而不是打开。
+  final bool selectionMode;
+
   /// 右侧是否显示「进入」箭头（分享页使用）。
   final bool showChevron;
 
@@ -19,6 +22,7 @@ class FileListTile extends StatelessWidget {
     required this.isSelected,
     required this.onSelect,
     required this.onOpen,
+    this.selectionMode = false,
     this.showChevron = false,
   });
 
@@ -38,11 +42,11 @@ class FileListTile extends StatelessWidget {
       subtitle: Text(file.isFolder ? '文件夹' : formatSize(file.size)),
       selected: isSelected,
       selectedTileColor: scheme.primary.withAlpha(46),
-      trailing: showChevron
+      trailing: showChevron && !selectionMode
           ? Icon(Icons.chevron_right,
               size: 18, color: Theme.of(context).colorScheme.outline)
           : null,
-      onTap: onOpen,
+      onTap: selectionMode ? onSelect : onOpen,
     );
   }
 }

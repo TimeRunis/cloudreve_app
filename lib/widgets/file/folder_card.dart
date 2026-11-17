@@ -5,9 +5,12 @@ import '../../models/file_item.dart';
 import '../file/file_icon.dart';
 
 /// 文件夹卡片（横向：图标 + 名字，长按进入选择）。
+///
+/// [selectionMode] 为 true 时（已有多选项），单击同样是切换选择，而不是进入目录。
 class FolderCard extends StatelessWidget {
   final FileItem folder;
   final bool isSelected;
+  final bool selectionMode;
   final VoidCallback onSelect;
   final VoidCallback onOpen;
 
@@ -17,6 +20,7 @@ class FolderCard extends StatelessWidget {
     required this.isSelected,
     required this.onSelect,
     required this.onOpen,
+    this.selectionMode = false,
   });
 
   @override
@@ -28,7 +32,7 @@ class FolderCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onOpen,
+        onTap: selectionMode ? onSelect : onOpen,
         onLongPress: onSelect,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),

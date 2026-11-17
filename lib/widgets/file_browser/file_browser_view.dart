@@ -55,6 +55,9 @@ class FileBrowserView extends StatelessWidget {
           );
     }
 
+    // 已有选中项即为多选状态：此时单击任意项都是切换选择，而不是打开。
+    final selecting = selectedPaths.isNotEmpty;
+
     if (viewMode == 'list') {
       return ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -65,6 +68,7 @@ class FileBrowserView extends StatelessWidget {
           return FileListTile(
             file: file,
             isSelected: selectedPaths.contains(file.path),
+            selectionMode: selecting,
             showChevron: showChevron,
             onSelect: () => onSelect(file),
             onOpen: () => onOpen(file),
@@ -98,6 +102,7 @@ class FileBrowserView extends StatelessWidget {
               return FolderCard(
                 folder: folder,
                 isSelected: selectedPaths.contains(folder.path),
+                selectionMode: selecting,
                 onSelect: () => onSelect(folder),
                 onOpen: () => onOpen(folder),
               );
@@ -123,6 +128,7 @@ class FileBrowserView extends StatelessWidget {
               return FileCard(
                 file: file,
                 isSelected: selectedPaths.contains(file.path),
+                selectionMode: selecting,
                 showThumb: showThumbnails,
                 onSelect: () => onSelect(file),
                 onOpen: () => onOpen(file),
