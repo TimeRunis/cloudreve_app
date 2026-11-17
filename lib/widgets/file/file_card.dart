@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/network/cloudreve_api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/file_item.dart';
+import '../common/instant_ink.dart';
 import 'file_icon.dart';
 import 'file_thumbnail.dart';
 
@@ -104,10 +105,12 @@ class FileCard extends StatelessWidget {
               ],
             ),
             // 覆盖整卡（含缩略图区域）的墨水展开层，置于内容之上。
+            // 用 InstantInk 而不是 InkWell：带双击时 InkWell 的墨水要等
+            // 双击判定（约 300ms）才出现，第一次点选会明显滞后。
             Positioned.fill(
               child: Material(
                 color: Colors.transparent,
-                child: InkWell(
+                child: InstantInk(
                   onTap: onSelect,
                   onLongPress: onSelect,
                   onDoubleTap: selectionMode ? null : onOpen,
