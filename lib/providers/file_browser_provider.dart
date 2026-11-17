@@ -16,6 +16,8 @@ class FileBrowserState {
   final String viewMode;
   final bool thumbnails;
   final int pageSize;
+
+  /// 排序 key；空串表示不指定排序（沿用服务端默认）。
   final String sortKey;
 
   /// 已选中的文件 path 集合。
@@ -26,7 +28,7 @@ class FileBrowserState {
     this.viewMode = 'grid',
     this.thumbnails = true,
     this.pageSize = 50,
-    this.sortKey = 'created_at-asc',
+    this.sortKey = '',
     this.selectedPaths = const {},
   });
 
@@ -116,6 +118,12 @@ class FileBrowserController extends Notifier<FileBrowserState> {
 
 /// 主页的浏览状态实例。
 final homeFileBrowserProvider =
+    NotifierProvider<FileBrowserController, FileBrowserState>(
+  FileBrowserController.new,
+);
+
+/// 分享页的浏览状态实例（与主页互不影响）。
+final shareFileBrowserProvider =
     NotifierProvider<FileBrowserController, FileBrowserState>(
   FileBrowserController.new,
 );

@@ -38,35 +38,68 @@ class SortPopup extends StatelessWidget {
     return AppPopup(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.4,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final opt in sortOptions)
-              InkWell(
-                onTap: () => onSelected(opt.key),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(opt.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: context.appColors.textPrimary)),
-                      ),
-                      if (selected == opt.key)
-                        Icon(Icons.check,
-                            size: 14, color: context.appColors.textPrimary),
-                    ],
+        // 屏幕高度不够时可滚动，避免菜单超出可视区域。
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final opt in sortOptions)
+                InkWell(
+                  onTap: () => onSelected(opt.key),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(opt.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: context.appColors.textPrimary)),
+                        ),
+                        if (selected == opt.key)
+                          Icon(Icons.check,
+                              size: 14, color: context.appColors.textPrimary),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// 以 [anchorKey] 为锚点弹出排序菜单，选中后通过 [onSelected] 传出 key。
+///
+/// 主页与分享页共用；锚定按钮本身，避免各页再算固定坐标。
+Future<void> showSortMenu(
+  BuildContext context, {
+  required GlobalKey anchorKey,
+  required String selected,
+  required ValueChanged<String> onSelected,
+}) async {
+  final key = await showAppPopup<String>(
+    context: context,
+    anchorKey: anchorKey,
+    builder: (dialogContext) => SortPopup(
+      selected: selected,
+      onSelected: (value) => Navigator.of(dialogContext).pop(value),
+    ),
+  );
+  if (key == null) return;
+  onSelected(key);
+}
+
+/// 按排序 key 找到对应选项；未选择排序（空 key）或未知 key 返回 null。
+SortOption? sortOptionFor(String key) {
+  if (key.isEmpty) return null;
+  for (final opt in sortOptions) {
+    if (opt.key == key) return opt;
+  }
+  return null;
 }

@@ -25,6 +25,7 @@ import '../widgets/home/home_toolbar.dart';
 import '../widgets/popup/add_menu_popup.dart';
 import '../widgets/popup/file_operations_popup.dart';
 import '../widgets/popup/more_menu_popup.dart';
+import '../widgets/popup/sort_popup.dart';
 import '../widgets/popup/user_menu_popup.dart';
 import '../widgets/sheet/file_info_sheet.dart';
 import '../widgets/sheet/share_create_sheet.dart';
@@ -50,6 +51,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   String _searchKeyword = '';
   DateTime? _lastBackPress;
 
+  /// 工具栏「排序」按钮，作为排序菜单的锚点。
+  final GlobalKey _sortButtonKey = GlobalKey();
+
+  /// 工具栏「视图」按钮，作为视图面板的锚点。
+  final GlobalKey _viewButtonKey = GlobalKey();
+
   bool get _isSearchActive => _searchKeyword.trim().isNotEmpty;
 
   /// 浏览状态（路径 / 视图 / 选择），由 [homeFileBrowserProvider] 持有。
@@ -60,6 +67,16 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   /// 当前目录路径（`/a/b`，根为 `/`）。
   String get _path => '/${_browse.pathSegments.join('/')}';
+
+  /// 当前目录 + 排序键组成的查询（排序变化会自动重新拉取）。
+  DirectoryQuery get _directoryQuery {
+    final opt = sortOptionFor(_browse.sortKey);
+    return DirectoryQuery(
+      _path,
+      orderBy: opt?.orderBy,
+      orderDirection: opt?.orderDirection,
+    );
+  }
 
   List<String> _segmentsOf(String path) =>
       path.split('/').where((s) => s.isNotEmpty).toList();
@@ -141,7 +158,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (category != null) {
       ref.invalidate(categoryFilesProvider(category));
     } else {
-      ref.invalidate(directoryProvider(_path));
+      ref.invalidate(directoryProvider(_directoryQuery));
     }
   }
 
@@ -160,7 +177,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (category != null) {
       return ref.read(categoryFilesProvider(category)).valueOrNull ?? const [];
     }
-    final listing = ref.read(directoryProvider(_path)).valueOrNull;
+    final listing = ref.read(directoryProvider(_directoryQuery)).valueOrNull;
     return listing?.files ?? const <FileItem>[];
   }
 
@@ -354,6 +371,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final ctrl = _browseCtrl;
     showHomeViewPanel(
       context,
+      anchorKey: _viewButtonKey,
       viewMode: browse.viewMode,
       thumbnails: browse.thumbnails,
       pageSize: browse.pageSize,
@@ -364,8 +382,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openSortMenu() {
-    showHomeSortMenu(
+    showSortMenu(
       context,
+      anchorKey: _sortButtonKey,
       selected: _browse.sortKey,
       onSelected: _browseCtrl.setSortKey,
     );
@@ -622,6 +641,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           bottom: HomeToolbar(
             segments: browse.pathSegments,
             category: _category,
+            viewButtonKey: _viewButtonKey,
+            sortButtonKey: _sortButtonKey,
             onNavigate: _navigateToDepth,
             onToggleView: _openViewPanel,
             onSort: _openSortMenu,
@@ -678,7 +699,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       );
     }
-    final listingAsync = ref.watch(directoryProvider(_path));
+    final listingAsync = ref.watch(directoryProvider(_directoryQuery));
     return listingAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => ErrorView(

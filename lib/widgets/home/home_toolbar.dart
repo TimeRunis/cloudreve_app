@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../providers/directory_provider.dart';
+import '../common/toolbar_action_group.dart';
 import '../navigation/breadcrumb.dart';
-import 'home_action_group.dart';
 
 /// 主页顶部工具栏：面包屑 + 视图/排序/更多按钮组。
 class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
   /// 当前路径层级（原始段）。
   final List<String> segments;
   final FileCategory? category;
+
+  /// 「排序」按钮的 key，排序菜单以它为锚点。
+  final Key? sortButtonKey;
+
+  /// 「视图」按钮的 key，视图面板以它为锚点。
+  final Key? viewButtonKey;
 
   /// 点击面包屑层级：0 = 根，i = 保留前 i 段。
   final ValueChanged<int> onNavigate;
@@ -22,6 +28,8 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.segments,
     this.category,
+    this.sortButtonKey,
+    this.viewButtonKey,
     required this.onNavigate,
     required this.onToggleView,
     required this.onSort,
@@ -51,10 +59,26 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           const SizedBox(width: 12),
-          HomeActionGroup(
-            onToggleView: onToggleView,
-            onSort: onSort,
-            onMore: onMore,
+          ToolbarActionGroup(
+            actions: [
+              ToolbarActionItem(
+                key: viewButtonKey,
+                icon: Icons.grid_view_outlined,
+                tooltip: '切换视图',
+                onTap: onToggleView,
+              ),
+              ToolbarActionItem(
+                key: sortButtonKey,
+                icon: Icons.swap_vert,
+                tooltip: '排序',
+                onTap: onSort,
+              ),
+              ToolbarActionItem(
+                icon: Icons.more_horiz,
+                tooltip: '更多',
+                onTap: onMore,
+              ),
+            ],
           ),
         ],
       ),

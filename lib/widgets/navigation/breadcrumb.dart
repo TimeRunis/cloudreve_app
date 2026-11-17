@@ -21,8 +21,8 @@ class Breadcrumb extends StatefulWidget {
   /// 点击某一层：0 = 根，i = 保留前 i 段。
   final ValueChanged<int> onNavigate;
 
-  /// 点击末尾目录（打开其操作菜单）。
-  final VoidCallback onOpenCurrentMenu;
+  /// 点击末尾目录（打开其操作菜单）；为空时末尾目录不可点、也不显示下拉箭头。
+  final VoidCallback? onOpenCurrentMenu;
 
   const Breadcrumb({
     super.key,
@@ -31,7 +31,7 @@ class Breadcrumb extends StatefulWidget {
     this.rootLabel = '我的文件',
     this.rootIcon = Icons.home_outlined,
     required this.onNavigate,
-    required this.onOpenCurrentMenu,
+    this.onOpenCurrentMenu,
   });
 
   @override
@@ -170,7 +170,7 @@ class _BreadcrumbState extends State<Breadcrumb> {
             color: context.appColors.textPrimary,
           ),
         ),
-        if (isLast)
+        if (isLast && widget.onOpenCurrentMenu != null)
           Icon(Icons.arrow_drop_down,
               size: 20, color: context.appColors.textSecondary),
       ],

@@ -158,7 +158,8 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
   }
 
   List<FileItem> _rootFolders() {
-    final listing = ref.watch(directoryProvider('/')).valueOrNull;
+    final listing =
+        ref.watch(directoryProvider(const DirectoryQuery('/'))).valueOrNull;
     if (listing == null) return const [];
     return listing.files.where((f) => f.isFolder).toList();
   }
@@ -327,8 +328,9 @@ class _FolderNodeState extends ConsumerState<_FolderNode> {
   bool _expanded = false;
 
   List<FileItem> _subfolders() {
-    final listing =
-        ref.watch(directoryProvider(widget.folder.relativePath)).valueOrNull;
+    final listing = ref
+        .watch(directoryProvider(DirectoryQuery(widget.folder.relativePath)))
+        .valueOrNull;
     if (listing == null) return const [];
     return listing.files.where((f) => f.isFolder).toList();
   }

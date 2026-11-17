@@ -9,17 +9,20 @@ import '../models/file_item.dart';
 import '../models/share.dart';
 import '../models/site.dart';
 import '../providers/download_provider.dart';
+import '../providers/file_browser_provider.dart';
 import '../widgets/common/error_view.dart';
-import '../widgets/common/section_title.dart';
-import '../widgets/common/toolbar_action.dart';
-import '../widgets/file/file_card.dart';
+import '../widgets/common/toolbar_action_group.dart';
 import '../widgets/file/file_icon.dart';
 import '../widgets/file/view_panel.dart';
-import '../widgets/share/share_folder_card.dart';
+import '../widgets/file_browser/file_browser_view.dart';
+import '../widgets/navigation/breadcrumb.dart';
+import '../widgets/popup/app_popup.dart';
+import '../widgets/popup/sort_popup.dart';
 import '../widgets/share/share_password_view.dart';
 import '../widgets/sheet/file_info_sheet.dart';
 import '../widgets/viewer/image_viewer.dart';
 import '../widgets/viewer/video_player_viewer.dart';
+import 'downloads_page.dart';
 
 /// 分享访问页：支持公开分享和带密码分享，可浏览分享目录/打开文件。
 class ShareViewerPage extends ConsumerStatefulWidget {
@@ -49,22 +52,26 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   bool _locked = false;
   String? _fatalError;
 
-  String _path = '';
   List<FileItem> _files = [];
   bool _loadingFiles = false;
   String? _loadError;
   int _fileLoadSeq = 0;
 
-  final Set<String> _selected = {};
+  /// 浏览状态（路径 / 视图 / 选择），由 [shareFileBrowserProvider] 持有。
+  FileBrowserState get _browse => ref.read(shareFileBrowserProvider);
 
-  bool get _isSelectionActive => _selected.isNotEmpty;
+  FileBrowserController get _browseCtrl =>
+      ref.read(shareFileBrowserProvider.notifier);
 
-  // 与主页一致的视图偏好。
-  String _viewMode = 'grid'; // grid | list | gallery
-  bool _thumbnails = true;
-  int _pageSize = 100;
+  /// 分享内的相对路径（根为空串）。
+  String get _sharePath => _browse.pathSegments.join('/');
+
+  bool get _isSelectionActive => _browse.selectedPaths.isNotEmpty;
 
   final GlobalKey _viewButtonKey = GlobalKey();
+
+  /// 工具栏「排序」按钮，作为排序菜单的锚点。
+  final GlobalKey _sortButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -173,8 +180,15 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       _loadError = null;
     });
     try {
-      final uri = shareUri(widget.shareId, password: _password, path: _path);
-      final listing = await _api.listFiles(uri, pageSize: _pageSize);
+      final uri =
+          shareUri(widget.shareId, password: _password, path: _sharePath);
+      final opt = sortOptionFor(_browse.sortKey);
+      final listing = await _api.listFiles(
+        uri,
+        pageSize: _browse.pageSize,
+        orderBy: opt?.orderBy,
+        orderDirection: opt?.orderDirection,
+      );
       if (!mounted || seq != _fileLoadSeq) return;
       setState(() {
         _files = listing.files;
@@ -196,87 +210,57 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   }
 
   void _openViewPanel() {
-    final box = _viewButtonKey.currentContext?.findRenderObject() as RenderBox?;
-    final size = MediaQuery.of(context).size;
-    final fallbackTop =
-        MediaQuery.of(context).padding.top + kToolbarHeight + 52;
-    final anchorTop = box == null
-        ? fallbackTop
-        : box.localToGlobal(Offset.zero).dy + box.size.height + 4;
-    final anchorRight = box == null
-        ? 16.0
-        : size.width - box.localToGlobal(Offset.zero).dx - box.size.width;
-    showGeneralDialog(
+    showAppPopup<void>(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'view-panel',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: anchorTop,
-              right: anchorRight,
-              child: ViewPanel(
-                initialViewMode: _viewMode,
-                initialThumbnails: _thumbnails,
-                initialPageSize: _pageSize,
-                onViewModeChanged: (v) => setState(() => _viewMode = v),
-                onThumbnailsChanged: (v) => setState(() => _thumbnails = v),
-                onPageSizeChanged: (v) {
-                  setState(() => _pageSize = v);
-                  _loadFiles();
-                },
-              ),
-            ),
-          ],
-        );
+      anchorKey: _viewButtonKey,
+      placement: AppPopupPlacement.below,
+      builder: (_) => ViewPanel(
+        initialViewMode: _browse.viewMode,
+        initialThumbnails: _browse.thumbnails,
+        initialPageSize: _browse.pageSize,
+        onViewModeChanged: _browseCtrl.setViewMode,
+        onThumbnailsChanged: _browseCtrl.setThumbnails,
+        onPageSizeChanged: (v) {
+          _browseCtrl.setPageSize(v);
+          _loadFiles();
+        },
+      ),
+    );
+  }
+
+  void _openSortMenu() {
+    showSortMenu(
+      context,
+      anchorKey: _sortButtonKey,
+      selected: _browse.sortKey,
+      onSelected: (key) {
+        _browseCtrl.setSortKey(key);
+        _loadFiles();
       },
     );
   }
 
   void _enter(FileItem folder) {
-    setState(() {
-      _path = _path.isEmpty ? folder.name : '$_path/${folder.name}';
-      _files = [];
-      _selected.clear();
-    });
+    _browseCtrl.enter(folder.name);
+    setState(() => _files = []);
     _loadFiles();
   }
 
-  void _goBack() {
-    final segments = _path.split('/').where((s) => s.isNotEmpty).toList();
-    if (segments.isEmpty) return;
-    setState(() {
-      _path = segments.isEmpty ? '' : segments.join('/');
-      _files = [];
-      _selected.clear();
-    });
+  /// 面包屑跳转：0 = 根，i = 保留前 i 段。
+  void _navigateToDepth(int depth) {
+    _browseCtrl.setPath(_browse.pathSegments.take(depth).toList());
+    setState(() => _files = []);
     _loadFiles();
   }
 
-  void _toggleSelect(FileItem file) {
-    setState(() {
-      if (!_selected.remove(file.path)) {
-        _selected.add(file.path);
-      }
-    });
-  }
+  void _toggleSelect(FileItem file) => _browseCtrl.toggleSelect(file.path);
 
-  void _clearSelection() {
-    setState(() => _selected.clear());
-  }
+  void _clearSelection() => _browseCtrl.clearSelection();
 
   Future<void> _downloadSelected() async {
-    final selectedFiles =
-        _files.where((f) => _selected.contains(f.path) && !f.isFolder).toList();
+    final selectedFiles = _files
+        .where((f) => _browse.selectedPaths.contains(f.path) && !f.isFolder)
+        .toList();
     if (selectedFiles.isEmpty) {
       _toast('文件夹打包下载暂不支持');
       return;
@@ -288,7 +272,11 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           .enqueueCloudreveFiles(_api, selectedFiles);
       if (!mounted) return;
       if (count > 0) _clearSelection();
-      _toast(count > 0 ? '已加入下载队列：$count 个任务' : '获取下载链接失败');
+      if (count > 0) {
+        _toastWithDownloadsAction('已加入下载队列：$count 个任务');
+      } else {
+        _toast('获取下载链接失败');
+      }
     } catch (e) {
       print('[ShareViewerPage] 加入下载队列失败: $e');
       if (mounted) _toast('加入下载队列失败');
@@ -307,7 +295,11 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           .manager
           .enqueueCloudreveFiles(_api, files);
       if (!mounted) return;
-      _toast(count > 0 ? '已加入下载队列：$count 个任务' : '获取下载链接失败');
+      if (count > 0) {
+        _toastWithDownloadsAction('已加入下载队列：$count 个任务');
+      } else {
+        _toast('获取下载链接失败');
+      }
     } catch (e) {
       print('[ShareViewerPage] 加入下载队列失败: $e');
       if (mounted) _toast('加入下载队列失败');
@@ -325,6 +317,24 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   void _toast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// 打开下载任务页。
+  void _openDownloads() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const DownloadsPage()),
+    );
+  }
+
+  /// 加入下载队列后的提示，带「查看」直达下载页。
+  void _toastWithDownloadsAction(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        action: SnackBarAction(label: '查看', onPressed: _openDownloads),
+      ),
+    );
   }
 
   void _open(FileItem file) {
@@ -360,6 +370,8 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 订阅浏览状态：多选、视图切换、路径变化后都需要重建。
+    ref.watch(shareFileBrowserProvider);
     final colors = context.appColors;
     return Scaffold(
       backgroundColor: colors.contentBg,
@@ -382,7 +394,15 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
             color: colors.textPrimary,
           ),
         ),
-        actions: const [SizedBox(width: 8)],
+        actions: [
+          IconButton(
+            tooltip: '下载任务',
+            icon: Icon(Icons.download_outlined,
+                size: 20, color: colors.textSecondary),
+            onPressed: _openDownloads,
+          ),
+          const SizedBox(width: 8),
+        ],
         bottom: !_checking && !_locked && _fatalError == null
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(52),
@@ -397,83 +417,44 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   }
 
   Widget _buildToolbar(BuildContext context) {
-    final colors = context.appColors;
-    final segments = _path.split('/').where((s) => s.isNotEmpty).toList();
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Row(
         children: [
           Expanded(
-            child: Material(
-              color: colors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: colors.toolbarBorder),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: _path.isEmpty ? null : _goBack,
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Row(
-                    children: [
-                      if (_path.isNotEmpty) ...[
-                        Icon(Icons.arrow_back,
-                            size: 18, color: colors.textSecondary),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        child: Text(
-                          segments.isEmpty ? '分享根目录' : segments.join(' / '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            child: Breadcrumb(
+              segments: _browse.pathSegments,
+              rootLabel: '分享根目录',
+              rootIcon: Icons.folder_shared_outlined,
+              onNavigate: _navigateToDepth,
             ),
           ),
           const SizedBox(width: 12),
-          Material(
-            color: colors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: colors.toolbarBorder),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: SizedBox(
-              height: 40,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ToolbarAction(
-                    key: _viewButtonKey,
-                    icon: Icons.grid_view_outlined,
-                    tooltip: '切换视图',
-                    onTap: _openViewPanel,
-                  ),
-                  ToolbarAction(
-                    icon: Icons.file_download_outlined,
-                    tooltip: '下载',
-                    onTap: _handleDownloadTap,
-                  ),
-                  ToolbarAction(
-                    icon: Icons.refresh,
-                    tooltip: '刷新',
-                    onTap: _refresh,
-                    last: true,
-                  ),
-                ],
+          ToolbarActionGroup(
+            actions: [
+              ToolbarActionItem(
+                key: _viewButtonKey,
+                icon: Icons.grid_view_outlined,
+                tooltip: '切换视图',
+                onTap: _openViewPanel,
               ),
-            ),
+              ToolbarActionItem(
+                key: _sortButtonKey,
+                icon: Icons.swap_vert,
+                tooltip: '排序',
+                onTap: _openSortMenu,
+              ),
+              ToolbarActionItem(
+                icon: Icons.file_download_outlined,
+                tooltip: '下载',
+                onTap: _handleDownloadTap,
+              ),
+              ToolbarActionItem(
+                icon: Icons.refresh,
+                tooltip: '刷新',
+                onTap: _refresh,
+              ),
+            ],
           ),
         ],
       ),
@@ -524,7 +505,13 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       );
     }
 
-    return _buildListing();
+    return Column(
+      children: [
+        // 刷新时给一条细进度条，避免「点了没反应」的错觉。
+        if (_loadingFiles) const LinearProgressIndicator(minHeight: 2),
+        Expanded(child: _buildListing()),
+      ],
+    );
   }
 
   Widget _buildSelectionBar(BuildContext context) {
@@ -535,7 +522,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       child: Row(
         children: [
           Text(
-            '已选择 ${_selected.length} 项',
+            '已选择 ${_browse.selectedPaths.length} 项',
             style: TextStyle(fontSize: 14, color: colors.textPrimary),
           ),
           const Spacer(),
@@ -548,7 +535,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           FilledButton.icon(
             onPressed: _downloadSelected,
             icon: const Icon(Icons.file_download_outlined, size: 18),
-            label: Text('下载 (${_selected.length})'),
+            label: Text('下载 (${_browse.selectedPaths.length})'),
           ),
         ],
       ),
@@ -556,101 +543,16 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   }
 
   Widget _buildListing() {
-    final colors = context.appColors;
-    final files = _files;
-    final folders = files.where((f) => f.isFolder).toList();
-    final fileItems = files.where((f) => !f.isFolder).toList();
-
-    if (_viewMode == 'list') {
-      return ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: files.length,
-        separatorBuilder: (_, __) => Divider(height: 1, color: colors.border),
-        itemBuilder: (context, i) {
-          final file = files[i];
-          final isSelected = _selected.contains(file.path);
-          return ListTile(
-            onTap: () => _open(file),
-            leading: IconButton(
-              tooltip: '选择',
-              icon: isSelected
-                  ? const SelectionCheck(size: 22)
-                  : Icon(fileIcon(file),
-                      color: fileIconColor(context, file), size: 28),
-              onPressed: () => _toggleSelect(file),
-            ),
-            title: Text(
-              file.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 14, color: colors.textPrimary),
-            ),
-            subtitle: Text(file.isFolder ? '文件夹' : formatSize(file.size),
-                style: TextStyle(fontSize: 12, color: colors.textMuted)),
-            trailing:
-                Icon(Icons.chevron_right, size: 18, color: colors.textFaint),
-          );
-        },
-      );
-    }
-
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      children: [
-        if (folders.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const SectionTitle.content('文件夹'),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 3.0,
-            ),
-            itemCount: folders.length,
-            itemBuilder: (context, i) {
-              final folder = folders[i];
-              return ShareFolderCard(
-                folder: folder,
-                isSelected: _selected.contains(folder.path),
-                onOpen: () => _open(folder),
-                onLongPress: () => _toggleSelect(folder),
-              );
-            },
-          ),
-        ],
-        if (fileItems.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          const SectionTitle.content('文件'),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.9,
-            ),
-            itemCount: fileItems.length,
-            itemBuilder: (context, i) {
-              final file = fileItems[i];
-              return FileCard(
-                file: file,
-                isSelected: _selected.contains(file.path),
-                showThumb: _thumbnails,
-                onSelect: () => _toggleSelect(file),
-                onOpen: () => _open(file),
-                api: _api,
-              );
-            },
-          ),
-        ],
-      ],
+    final browse = _browse;
+    return FileBrowserView(
+      files: _files,
+      viewMode: browse.viewMode,
+      showThumbnails: browse.thumbnails,
+      selectedPaths: browse.selectedPaths,
+      onOpen: _open,
+      onSelect: _toggleSelect,
+      api: _api,
+      showChevron: true,
     );
   }
 }

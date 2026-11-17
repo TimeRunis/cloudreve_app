@@ -7,16 +7,46 @@ import 'api_provider.dart';
 /// 侧边栏快速入口分类（对应 Cloudreve v4 URI 搜索条件 name=扩展名&case_folding=）。
 enum FileCategory {
   image('图片', [
-    'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'heic', 'heif', 'svg',
+    'png',
+    'jpg',
+    'jpeg',
+    'gif',
+    'webp',
+    'bmp',
+    'heic',
+    'heif',
+    'svg',
   ]),
   video('视频', [
-    'mp4', 'mkv', 'avi', 'mov', 'webm', 'm4v', 'ts', 'm3u8',
+    'mp4',
+    'mkv',
+    'avi',
+    'mov',
+    'webm',
+    'm4v',
+    'ts',
+    'm3u8',
   ]),
   music('音乐', [
-    'mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'ape',
+    'mp3',
+    'flac',
+    'wav',
+    'm4a',
+    'aac',
+    'ogg',
+    'ape',
   ]),
   doc('文档', [
-    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf', 'txt', 'md', 'csv',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'ppt',
+    'pptx',
+    'pdf',
+    'txt',
+    'md',
+    'csv',
   ]);
 
   const FileCategory(this.label, this.extensions);
@@ -25,11 +55,41 @@ enum FileCategory {
   final List<String> extensions;
 }
 
-/// 目录列表（family：按路径缓存）。
+/// 目录查询：路径 + 可选排序。
+///
+/// [orderBy] 为空表示不指定排序，沿用服务端默认（避免改变既有展示顺序）。
+class DirectoryQuery {
+  final String path;
+  final String? orderBy;
+  final String? orderDirection;
+
+  const DirectoryQuery(
+    this.path, {
+    this.orderBy,
+    this.orderDirection,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is DirectoryQuery &&
+      other.path == path &&
+      other.orderBy == orderBy &&
+      other.orderDirection == orderDirection;
+
+  @override
+  int get hashCode => Object.hash(path, orderBy, orderDirection);
+}
+
+/// 目录列表（family：按路径 + 排序缓存）。
 final directoryProvider =
-    FutureProvider.family<DirectoryListing, String>((ref, path) {
+    FutureProvider.family<DirectoryListing, DirectoryQuery>((ref, query) {
   final api = ref.watch(apiProvider);
-  return api.listFiles(path, pageSize: 500);
+  return api.listFiles(
+    query.path,
+    pageSize: 500,
+    orderBy: query.orderBy,
+    orderDirection: query.orderDirection,
+  );
 });
 
 /// 分类文件列表（图片 / 视频 / 音乐 / 文档）。
@@ -53,8 +113,7 @@ final categoryFilesProvider =
       if (seen.add(file.path)) files.add(file);
     }
   }
-  files.sort(
-      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  files.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   return files;
 });
 

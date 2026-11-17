@@ -5,10 +5,10 @@ import '../../providers/directory_provider.dart';
 import '../file/view_panel.dart';
 import '../navigation/sidebar_panel.dart';
 import '../popup/add_menu_popup.dart';
+import '../popup/app_popup.dart';
 import '../popup/file_operations_popup.dart';
 import '../popup/more_menu_popup.dart';
 import '../popup/search_popup.dart';
-import '../popup/sort_popup.dart';
 import '../popup/user_menu_popup.dart';
 
 /// 主页各类悬浮窗的启动器。
@@ -226,9 +226,10 @@ Future<void> showHomeSearch(
   );
 }
 
-/// 视图设置面板。
+/// 视图设置面板（以 [anchorKey] 为锚点弹出，越界会被夹回屏幕内）。
 Future<void> showHomeViewPanel(
   BuildContext context, {
+  required GlobalKey anchorKey,
   required String viewMode,
   required bool thumbnails,
   required int pageSize,
@@ -236,12 +237,10 @@ Future<void> showHomeViewPanel(
   required ValueChanged<bool> onThumbnailsChanged,
   required ValueChanged<int> onPageSizeChanged,
 }) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'view-panel',
-    top: topPad + kToolbarHeight + 40,
-    right: 16,
+  return showAppPopup<void>(
+    context: context,
+    anchorKey: anchorKey,
+    placement: AppPopupPlacement.below,
     builder: (_) => ViewPanel(
       initialViewMode: viewMode,
       initialThumbnails: thumbnails,
@@ -249,28 +248,6 @@ Future<void> showHomeViewPanel(
       onViewModeChanged: onViewModeChanged,
       onThumbnailsChanged: onThumbnailsChanged,
       onPageSizeChanged: onPageSizeChanged,
-    ),
-  );
-}
-
-/// 排序菜单。
-Future<void> showHomeSortMenu(
-  BuildContext context, {
-  required String selected,
-  required ValueChanged<String> onSelected,
-}) {
-  final topPad = MediaQuery.of(context).padding.top;
-  return _showPanel(
-    context,
-    barrierLabel: 'sort-menu',
-    top: topPad + kToolbarHeight + 40,
-    right: 64,
-    builder: (dialogContext) => SortPopup(
-      selected: selected,
-      onSelected: (key) {
-        Navigator.of(dialogContext).pop();
-        onSelected(key);
-      },
     ),
   );
 }

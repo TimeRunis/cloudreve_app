@@ -40,16 +40,21 @@ class AppPopup extends StatelessWidget {
   }
 }
 
+/// 悬浮窗相对锚点的弹出方向。
+enum AppPopupPlacement { below, above, left, right }
+
 /// 以 [anchorKey] 对应的控件为锚点弹出悬浮窗，点击空白处关闭。
 ///
-/// - 默认右对齐：弹窗右边缘贴住锚点右边缘（菜单按钮在右侧时更自然）；
-/// - 下方空间不足时自动翻到锚点上方；
-/// - 左右越界会被夹回屏幕内；
+/// - [placement] 指定相对锚点的方向（上/下/左/右），默认在下方；
+/// - 首选方向放不下时自动换到对侧或其它方向；
+/// - 无论落在哪个方向，最终都会被夹回屏幕内，不会溢出；
+/// - [alignEnd] 为 true 时，上下方向下右对齐锚点（菜单按钮在右侧更自然）；
 /// - 返回点击项通过 `Navigator.pop(value)` 传出的值。
 Future<T?> showAppPopup<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   GlobalKey? anchorKey,
+  AppPopupPlacement placement = AppPopupPlacement.below,
   bool alignEnd = true,
   double gap = 6,
   bool barrierDismissible = true,
@@ -93,6 +98,7 @@ Future<T?> showAppPopup<T>({
                   anchorRect: rect,
                   gap: gap,
                   alignEnd: alignEnd,
+                  placement: placement,
                 ),
                 child: builder(dialogContext),
               ),
@@ -114,47 +120,117 @@ Future<T?> showAppPopup<T>({
   );
 }
 
-/// 把悬浮窗摆到锚点下方，并做屏幕边界收敛。
+/// 按 [AppPopupPlacement] 把悬浮窗摆到锚点旁边，并强制夹在屏幕内。
 class _AnchorPopupLayout extends SingleChildLayoutDelegate {
   _AnchorPopupLayout({
     required this.anchorRect,
     required this.gap,
     required this.alignEnd,
+    required this.placement,
   });
 
   final Rect anchorRect;
   final double gap;
   final bool alignEnd;
+  final AppPopupPlacement placement;
 
   static const double _margin = 8;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
-    return BoxConstraints.loose(Size(
-      constraints.maxWidth - _margin * 2,
-      constraints.maxHeight - _margin * 2,
-    ));
+    final maxWidth =
+        (constraints.maxWidth - _margin * 2).clamp(0.0, double.infinity);
+    final maxHeight =
+        (constraints.maxHeight - _margin * 2).clamp(0.0, double.infinity);
+    return BoxConstraints.loose(Size(maxWidth, maxHeight));
   }
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
-    final maxLeft = size.width - childSize.width - _margin;
-    var left = alignEnd ? anchorRect.right - childSize.width : anchorRect.left;
-    if (left < _margin) left = _margin;
-    if (left > maxLeft) left = maxLeft < _margin ? _margin : maxLeft;
+    final fitsBelow =
+        anchorRect.bottom + gap + childSize.height <= size.height - _margin;
+    final fitsAbove = anchorRect.top - gap - childSize.height >= _margin;
+    final fitsRight =
+        anchorRect.right + gap + childSize.width <= size.width - _margin;
+    final fitsLeft = anchorRect.left - gap - childSize.width >= _margin;
 
-    var top = anchorRect.bottom + gap;
-    if (top + childSize.height > size.height - _margin) {
-      // 下方放不下就翻到锚点上方。
-      top = anchorRect.top - gap - childSize.height;
+    bool fits(AppPopupPlacement p) {
+      switch (p) {
+        case AppPopupPlacement.below:
+          return fitsBelow;
+        case AppPopupPlacement.above:
+          return fitsAbove;
+        case AppPopupPlacement.right:
+          return fitsRight;
+        case AppPopupPlacement.left:
+          return fitsLeft;
+      }
     }
-    if (top < _margin) top = _margin;
-    return Offset(left, top);
+
+    final AppPopupPlacement opposite;
+    switch (placement) {
+      case AppPopupPlacement.below:
+        opposite = AppPopupPlacement.above;
+        break;
+      case AppPopupPlacement.above:
+        opposite = AppPopupPlacement.below;
+        break;
+      case AppPopupPlacement.right:
+        opposite = AppPopupPlacement.left;
+        break;
+      case AppPopupPlacement.left:
+        opposite = AppPopupPlacement.right;
+        break;
+    }
+
+    var chosen = placement;
+    if (!fits(placement)) {
+      if (fits(opposite)) {
+        chosen = opposite;
+      } else {
+        for (final candidate in AppPopupPlacement.values) {
+          if (candidate == placement || candidate == opposite) continue;
+          if (fits(candidate)) {
+            chosen = candidate;
+            break;
+          }
+        }
+      }
+    }
+
+    double left;
+    double top;
+    switch (chosen) {
+      case AppPopupPlacement.below:
+        left = alignEnd ? anchorRect.right - childSize.width : anchorRect.left;
+        top = anchorRect.bottom + gap;
+        break;
+      case AppPopupPlacement.above:
+        left = alignEnd ? anchorRect.right - childSize.width : anchorRect.left;
+        top = anchorRect.top - gap - childSize.height;
+        break;
+      case AppPopupPlacement.right:
+        left = anchorRect.right + gap;
+        top = anchorRect.top;
+        break;
+      case AppPopupPlacement.left:
+        left = anchorRect.left - gap - childSize.width;
+        top = anchorRect.top;
+        break;
+    }
+
+    final maxLeft = size.width - childSize.width - _margin;
+    final maxTop = size.height - childSize.height - _margin;
+    final clampedLeft =
+        left.clamp(_margin, maxLeft < _margin ? _margin : maxLeft);
+    final clampedTop = top.clamp(_margin, maxTop < _margin ? _margin : maxTop);
+    return Offset(clampedLeft.toDouble(), clampedTop.toDouble());
   }
 
   @override
   bool shouldRelayout(_AnchorPopupLayout oldDelegate) =>
       anchorRect != oldDelegate.anchorRect ||
       gap != oldDelegate.gap ||
-      alignEnd != oldDelegate.alignEnd;
+      alignEnd != oldDelegate.alignEnd ||
+      placement != oldDelegate.placement;
 }
