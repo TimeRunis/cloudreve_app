@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
-import '../models/user.dart';
 import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/directory_provider.dart';
@@ -14,20 +13,27 @@ import '../providers/download_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/site_config_provider.dart';
 import '../providers/upload_provider.dart';
-import '../widgets/popup/add_menu_popup.dart';
+import '../widgets/common/app_bar_icon_button.dart';
+import '../widgets/common/error_view.dart';
+import '../widgets/common/section_title.dart';
+import '../widgets/common/user_avatar.dart';
 import '../widgets/file/file_card.dart';
 import '../widgets/file/file_icon.dart';
-import '../widgets/sheet/file_info_sheet.dart';
+import '../widgets/file/file_list_tile.dart';
+import '../widgets/file/folder_card.dart';
+import '../widgets/file/view_panel.dart';
+import '../widgets/home/home_toolbar.dart';
+import '../widgets/navigation/sidebar_panel.dart';
+import '../widgets/popup/add_menu_popup.dart';
 import '../widgets/popup/file_operations_popup.dart';
-import '../widgets/viewer/image_viewer.dart';
 import '../widgets/popup/more_menu_popup.dart';
 import '../widgets/popup/search_popup.dart';
-import '../widgets/sheet/share_create_sheet.dart';
-import '../widgets/navigation/sidebar_panel.dart';
 import '../widgets/popup/sort_popup.dart';
 import '../widgets/popup/user_menu_popup.dart';
+import '../widgets/sheet/file_info_sheet.dart';
+import '../widgets/sheet/share_create_sheet.dart';
+import '../widgets/viewer/image_viewer.dart';
 import '../widgets/viewer/video_player_viewer.dart';
-import '../widgets/file/view_panel.dart';
 import 'downloads_page.dart';
 import 'my_shares_page.dart';
 import 'settings_hub_page.dart';
@@ -228,7 +234,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openSidebar() {
-    final title = ref.read(siteConfigProvider).valueOrNull?.title ?? 'Cloudreve';
+    final title =
+        ref.read(siteConfigProvider).valueOrNull?.title ?? 'Cloudreve';
     final topPad = MediaQuery.of(context).padding.top;
     showGeneralDialog(
       context: context,
@@ -293,8 +300,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 onSettings: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const SettingsHubPage()),
+                    MaterialPageRoute(builder: (_) => const SettingsHubPage()),
                   );
                 },
               ),
@@ -332,17 +338,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _pickAndUpload() async {
-    final result =
-        await FilePicker.platform.pickFiles(allowMultiple: true, withData: false);
+    final result = await FilePicker.platform
+        .pickFiles(allowMultiple: true, withData: false);
     if (result == null || !mounted) return;
     final paths = result.files.map((f) => f.path).whereType<String>().toList();
     if (paths.isEmpty) return;
     final site = ref.read(currentSiteProvider);
     if (site == null) return;
-    final count = await ref
-        .read(uploadManagerProvider)
-        .manager
-        .enqueueFiles(paths: paths, siteId: site.id, targetDirUri: pathToUri(_path));
+    final count = await ref.read(uploadManagerProvider).manager.enqueueFiles(
+        paths: paths, siteId: site.id, targetDirUri: pathToUri(_path));
     if (!mounted) return;
     if (count > 0) {
       _openUploadQueue();
@@ -833,79 +837,81 @@ class _HomePageState extends ConsumerState<HomePage> {
       child: Scaffold(
         backgroundColor: context.appColors.contentBg,
         appBar: AppBar(
-        backgroundColor: context.appColors.headerBg,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: '菜单',
-          icon: Icon(Icons.menu, color: context.appColors.textPrimary),
-          onPressed: _openSidebar,
-        ),
-        actions: _selected.isEmpty
-            ? [
-                ListenableBuilder(
-                  listenable: uploadManager,
-                  builder: (context, _) => _AppBarIconButton(
-                    icon: Icons.upload_outlined,
-                    tooltip: '上传',
-                    badgeCount: uploadManager.activeCount,
-                    onPressed: _openUploadQueue,
+          backgroundColor: context.appColors.headerBg,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            tooltip: '菜单',
+            icon: Icon(Icons.menu, color: context.appColors.textPrimary),
+            onPressed: _openSidebar,
+          ),
+          actions: _selected.isEmpty
+              ? [
+                  ListenableBuilder(
+                    listenable: uploadManager,
+                    builder: (context, _) => AppBarIconButton(
+                      icon: Icons.upload_outlined,
+                      tooltip: '上传',
+                      badgeCount: uploadManager.activeCount,
+                      onPressed: _openUploadQueue,
+                    ),
                   ),
-                ),
-                ListenableBuilder(
-                  listenable: downloadManager,
-                  builder: (context, _) => _AppBarIconButton(
-                    icon: Icons.download_outlined,
-                    tooltip: '下载',
-                    badgeCount: downloadManager.activeCount,
-                    onPressed: _openDownloads,
+                  ListenableBuilder(
+                    listenable: downloadManager,
+                    builder: (context, _) => AppBarIconButton(
+                      icon: Icons.download_outlined,
+                      tooltip: '下载',
+                      badgeCount: downloadManager.activeCount,
+                      onPressed: _openDownloads,
+                    ),
                   ),
-                ),
-                _AppBarIconButton(
-                  icon: Icons.search,
-                  tooltip: '搜索',
-                  onPressed: _openSearch,
-                ),
-                _AppBarIconButton(
-                  icon: Icons.add,
-                  tooltip: '添加',
-                  onPressed: _openAddMenu,
-                ),
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child:
-                      Center(child: _UserAvatar(user: user, onTap: _openUserMenu)),
-                ),
-                const SizedBox(width: 8),
-              ]
-            : [
-                _SelectionActionButton(
-                  icon: Icons.close,
-                  count: _selected.length,
-                  tooltip: '取消选择',
-                  onPressed: _clearSelection,
-                ),
-                _SelectionActionButton(
-                  icon: Icons.more_horiz,
-                  count: _selected.length,
-                  tooltip: '更多操作',
-                  onPressed: _openSelectionMenu,
-                ),
-                const SizedBox(width: 4),
-              ],
-        bottom: _HeaderToolbar(
-          path: _path,
-          category: _category,
-          onNavigate: _navigateTo,
-          onToggleView: _openViewPanel,
-          onSort: _openSortMenu,
-          onMore: _openMoreMenu,
-          onOpenBreadcrumb: _openBreadcrumbPopup,
+                  AppBarIconButton(
+                    icon: Icons.search,
+                    tooltip: '搜索',
+                    onPressed: _openSearch,
+                  ),
+                  AppBarIconButton(
+                    icon: Icons.add,
+                    tooltip: '添加',
+                    onPressed: _openAddMenu,
+                  ),
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                        child: UserAvatar(user: user, onTap: _openUserMenu)),
+                  ),
+                  const SizedBox(width: 8),
+                ]
+              : [
+                  AppBarIconButton(
+                    icon: Icons.close,
+                    badgeCount: _selected.length,
+                    badgeOffset: const Offset(4, 4),
+                    tooltip: '取消选择',
+                    onPressed: _clearSelection,
+                  ),
+                  AppBarIconButton(
+                    icon: Icons.more_horiz,
+                    badgeCount: _selected.length,
+                    badgeOffset: const Offset(4, 4),
+                    tooltip: '更多操作',
+                    onPressed: _openSelectionMenu,
+                  ),
+                  const SizedBox(width: 4),
+                ],
+          bottom: HomeToolbar(
+            path: _path,
+            category: _category,
+            onNavigate: _navigateTo,
+            onToggleView: _openViewPanel,
+            onSort: _openSortMenu,
+            onMore: _openMoreMenu,
+            onOpenBreadcrumb: _openBreadcrumbPopup,
+          ),
         ),
+        body: _buildBody(),
       ),
-      body: _buildBody(),
-    ),
     );
   }
 
@@ -918,7 +924,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         final filesAsync = ref.watch(categoryFilesProvider(category));
         return filesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(
+          error: (e, _) => ErrorView(
             message: e.toString(),
             onRetry: _refresh,
           ),
@@ -931,7 +937,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       final filesAsync = ref.watch(searchFilesProvider(keyword));
       return filesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorView(
+        error: (e, _) => ErrorView(
           message: e.toString(),
           onRetry: _refresh,
         ),
@@ -943,7 +949,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       final filesAsync = ref.watch(categoryFilesProvider(category));
       return filesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorView(
+        error: (e, _) => ErrorView(
           message: e.toString(),
           onRetry: _refresh,
         ),
@@ -956,7 +962,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final listingAsync = ref.watch(directoryProvider(_path));
     return listingAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorView(
+      error: (e, _) => ErrorView(
         message: e.toString(),
         onRetry: _refresh,
       ),
@@ -1062,7 +1068,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         separatorBuilder: (_, __) => const Divider(height: 1),
         itemBuilder: (context, i) {
           final file = files[i];
-          return _FileListTile(
+          return FileListTile(
             file: file,
             isSelected: _selected.contains(file.path),
             onSelect: () => _toggleSelect(file),
@@ -1079,7 +1085,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       children: [
         if (folders.isNotEmpty) ...[
           const SizedBox(height: 16),
-          const _SectionTitle('文件夹'),
+          const SectionTitle.content('文件夹'),
           const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
@@ -1093,7 +1099,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             itemCount: folders.length,
             itemBuilder: (context, i) {
               final folder = folders[i];
-              return _FolderCard(
+              return FolderCard(
                 folder: folder,
                 isSelected: _selected.contains(folder.path),
                 onSelect: () => _toggleSelect(folder),
@@ -1104,7 +1110,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
         if (fileItems.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const _SectionTitle('文件'),
+          const SectionTitle.content('文件'),
           const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
@@ -1133,585 +1139,18 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: context.appColors.textPrimary,
-      ),
-    );
-  }
-}
-
-IconData _categoryIcon(FileCategory category) {
-  switch (category) {
-    case FileCategory.image:
-      return Icons.image_outlined;
-    case FileCategory.video:
-      return Icons.videocam_outlined;
-    case FileCategory.music:
-      return Icons.music_note_outlined;
-    case FileCategory.doc:
-      return Icons.description_outlined;
-  }
-}
-
 /// 顶部导航栏下方的工具栏：面包屑 + 视图/排序/更多分段按钮组。
-class _HeaderToolbar extends StatelessWidget implements PreferredSizeWidget {
-  final String path;
-  final FileCategory? category;
-  final ValueChanged<String> onNavigate;
-  final VoidCallback onToggleView;
-  final VoidCallback onSort;
-  final VoidCallback onMore;
-  final VoidCallback onOpenBreadcrumb;
-
-  const _HeaderToolbar({
-    required this.path,
-    this.category,
-    required this.onNavigate,
-    required this.onToggleView,
-    required this.onSort,
-    required this.onMore,
-    required this.onOpenBreadcrumb,
-  });
-
-  @override
-  Size get preferredSize => const Size.fromHeight(52);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      decoration: BoxDecoration(
-        border: Border(
-            bottom: BorderSide(color: context.appColors.contentBg, width: 2)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _Breadcrumb(
-              path: path,
-              category: category,
-              onNavigate: onNavigate,
-              onOpenCurrentPopup: onOpenBreadcrumb,
-            ),
-          ),
-          const SizedBox(width: 12),
-          _ActionGroup(
-            onToggleView: onToggleView,
-            onSort: onSort,
-            onMore: onMore,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// 面包屑：可左右滑动的路径层级，末尾目录带朝下箭头；路径变化后自动滚到最右。
-class _Breadcrumb extends StatefulWidget {
-  final String path;
-  final FileCategory? category;
-  final ValueChanged<String> onNavigate;
-  final VoidCallback onOpenCurrentPopup;
-
-  const _Breadcrumb({
-    required this.path,
-    this.category,
-    required this.onNavigate,
-    required this.onOpenCurrentPopup,
-  });
-
-  @override
-  State<_Breadcrumb> createState() => _BreadcrumbState();
-}
-
-class _BreadcrumbState extends State<_Breadcrumb> {
-  final ScrollController _controller = ScrollController();
-
-  @override
-  void didUpdateWidget(covariant _Breadcrumb oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.path != widget.path) {
-      _scrollToEnd();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _scrollToEnd() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_controller.hasClients) return;
-      _controller.jumpTo(_controller.position.maxScrollExtent);
-    });
-  }
-
-  List<String> get _segments =>
-      widget.path.split('/').where((s) => s.isNotEmpty).toList();
-
-  String _pathFor(int index) =>
-      '/${_segments.sublist(0, index + 1).join('/')}';
-
-  /// 面包屑显示用：URL 解码目录名（不改动内部路径）。
-  String _decodeSegment(String s) {
-    try {
-      return Uri.decodeComponent(s);
-    } catch (_) {
-      return s;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final segments = _segments;
-    return Material(
-      color: context.appColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: context.appColors.toolbarBorder),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        controller: _controller,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: SizedBox(
-          height: 40,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _crumb(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.home_outlined,
-                        size: 18, color: context.appColors.textPrimary),
-                    const SizedBox(width: 6),
-                    Text('我的文件',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: context.appColors.textPrimary)),
-                  ],
-                ),
-                onTap: () => widget.onNavigate('/'),
-              ),
-              if (widget.category != null) ...[
-                Icon(Icons.chevron_right,
-                    size: 16, color: context.appColors.textFaint),
-                _crumb(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_categoryIcon(widget.category!),
-                          size: 18, color: context.appColors.textPrimary),
-                      const SizedBox(width: 6),
-                      Text(widget.category!.label,
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: context.appColors.textPrimary)),
-                    ],
-                  ),
-                  onTap: null,
-                ),
-              ] else
-                for (int i = 0; i < segments.length; i++) ...[
-                  Icon(Icons.chevron_right,
-                      size: 16, color: context.appColors.textFaint),
-                  _crumb(
-                    _segmentLabel(
-                        _decodeSegment(segments[i]), i == segments.length - 1),
-                    onTap: i == segments.length - 1
-                        ? widget.onOpenCurrentPopup
-                        : () => widget.onNavigate(_pathFor(i)),
-                  ),
-                ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 面包屑单元：包裹点击，墨水展开区域与面包屑上下边缘留出间距。
-  Widget _crumb(Widget child, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        child: child,
-      ),
-    );
-  }
-
-  /// 目录段标签：末尾段加粗并紧贴一个朝下箭头。
-  Widget _segmentLabel(String name, bool isLast) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          name,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: isLast ? FontWeight.w600 : FontWeight.w500,
-            color: context.appColors.textPrimary,
-          ),
-        ),
-        if (isLast)
-          Icon(Icons.arrow_drop_down,
-              size: 20, color: context.appColors.textSecondary),
-      ],
-    );
-  }
-}
 
 /// 分段按钮组：视图 / 排序 / 更多，边框包裹 + 内部竖向分隔线。
-class _ActionGroup extends StatelessWidget {
-  final VoidCallback onToggleView;
-  final VoidCallback onSort;
-  final VoidCallback onMore;
-
-  const _ActionGroup({
-    required this.onToggleView,
-    required this.onSort,
-    required this.onMore,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: context.appColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: context.appColors.toolbarBorder),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: 40,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ActionButton(icon: Icons.grid_view_outlined, onTap: onToggleView),
-            _ActionButton(icon: Icons.swap_vert, onTap: onSort),
-            _ActionButton(icon: Icons.more_horiz, onTap: onMore, last: true),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool last;
-
-  const _ActionButton({
-    required this.icon,
-    required this.onTap,
-    this.last = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: last
-              ? null
-              : Border(
-                  right: BorderSide(color: context.appColors.toolbarBorder)),
-        ),
-        child: Icon(icon, size: 18, color: context.appColors.textSecondary),
-      ),
-    );
-  }
-}
 
 /// 文件夹卡片（横向：图标 + 名字）。
-class _FolderCard extends StatelessWidget {
-  final FileItem folder;
-  final bool isSelected;
-  final VoidCallback onSelect;
-  final VoidCallback onOpen;
-
-  const _FolderCard({
-    required this.folder,
-    required this.isSelected,
-    required this.onSelect,
-    required this.onOpen,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: context.appColors.surfaceMuted,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onOpen,
-        onLongPress: onSelect,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SizedBox(
-            height: 48,
-            child: Row(
-              children: [
-                isSelected
-                    ? const SelectionCheck(size: 18)
-                    : Icon(Icons.folder,
-                        size: 18, color: context.appColors.textSecondary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      folder.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14, color: context.appColors.textPrimary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// 列表视图（长方形行）。
-class _FileListTile extends StatelessWidget {
-  final FileItem file;
-  final bool isSelected;
-  final VoidCallback onSelect;
-  final VoidCallback onOpen;
-
-  const _FileListTile({
-    required this.file,
-    required this.isSelected,
-    required this.onSelect,
-    required this.onOpen,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      leading: IconButton(
-        tooltip: '选择',
-        icon: isSelected
-            ? const SelectionCheck(size: 22)
-            : Icon(fileIcon(file),
-                color: fileIconColor(context, file), size: 28),
-        onPressed: onSelect,
-      ),
-      title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(file.isFolder ? '文件夹' : formatSize(file.size)),
-      selected: isSelected,
-      selectedTileColor: scheme.primary.withAlpha(46),
-      onTap: onOpen,
-    );
-  }
-}
 
 /// 右上角用户头像。
-class _UserAvatar extends StatelessWidget {
-  final User? user;
-  final VoidCallback onTap;
-
-  const _UserAvatar({required this.user, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final name = user?.nickname ?? '';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: CircleAvatar(
-        radius: 16,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: Text(
-          initial,
-          style: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-      ),
-    );
-  }
-}
 
 /// 选择模式下的导航栏按钮：右上角带蓝色圆形数量角标。
-class _SelectionActionButton extends StatelessWidget {
-  final IconData icon;
-  final int count;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  const _SelectionActionButton({
-    required this.icon,
-    required this.count,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            tooltip: tooltip,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-            icon: Icon(icon,
-                size: 22, color: context.appColors.textPrimary),
-            onPressed: onPressed,
-          ),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-              decoration: BoxDecoration(
-                color: scheme.primary,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// 导航栏图标按钮：固定 44x44，与头像等其他 actions 对齐；可带数量角标。
-class _AppBarIconButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-  final int badgeCount;
-
-  const _AppBarIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.badgeCount = 0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            tooltip: tooltip,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-            icon: Icon(icon,
-                size: 22, color: context.appColors.textPrimary),
-            onPressed: onPressed,
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              top: 2,
-              right: 2,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                constraints:
-                    const BoxConstraints(minWidth: 18, minHeight: 18),
-                decoration: BoxDecoration(
-                  color: scheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$badgeCount',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(message, textAlign: TextAlign.center),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(onPressed: onRetry, child: const Text('重试')),
-        ],
-      ),
-    );
-  }
-}
-
-
