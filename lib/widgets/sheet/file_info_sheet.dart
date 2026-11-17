@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../core/network/cloudreve_api.dart';
-import '../core/theme/app_colors.dart';
-import '../models/file_item.dart';
-import 'file_icon.dart';
-import 'file_thumbnail.dart';
+import '../../core/network/cloudreve_api.dart';
+import '../../core/theme/app_colors.dart';
+import '../../models/file_item.dart';
+import '../file/file_icon.dart';
+import '../file/file_thumbnail.dart';
 
 /// 文件详情底部面板（纯展示组件）。
 class FileInfoSheet extends StatelessWidget {

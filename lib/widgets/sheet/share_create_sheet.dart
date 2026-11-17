@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/theme/app_colors.dart';
-import '../models/file_item.dart';
-import '../providers/api_provider.dart';
-import 'file_icon.dart';
-import 'view_panel.dart';
+import '../../core/theme/app_colors.dart';
+import '../../models/file_item.dart';
+import '../../providers/api_provider.dart';
+import '../file/file_icon.dart';
+import '../file/view_panel.dart';
 
 enum _PasswordMode { none, random, custom }
 
@@ -187,9 +187,8 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
         clipBehavior: Clip.antiAlias,
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: _resultUrl != null
-              ? _buildResult(context)
-              : _buildForm(context),
+          child:
+              _resultUrl != null ? _buildResult(context) : _buildForm(context),
         ),
       ),
     );
@@ -247,12 +246,11 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             enabled: !_submitting,
             decoration: InputDecoration(
               hintText: '随机密码',
-              prefixIcon: Icon(Icons.shuffle,
-                  size: 18, color: colors.textMuted),
+              prefixIcon:
+                  Icon(Icons.shuffle, size: 18, color: colors.textMuted),
               suffixIcon: IconButton(
                 tooltip: '重新生成',
-                icon: Icon(Icons.refresh,
-                    size: 18, color: colors.textMuted),
+                icon: Icon(Icons.refresh, size: 18, color: colors.textMuted),
                 onPressed: _regenerateRandom,
               ),
               filled: true,
@@ -274,8 +272,8 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             enabled: !_submitting,
             decoration: InputDecoration(
               hintText: '请输入自定义密码',
-              prefixIcon: Icon(Icons.password,
-                  size: 18, color: colors.textMuted),
+              prefixIcon:
+                  Icon(Icons.password, size: 18, color: colors.textMuted),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureCustom
@@ -348,8 +346,8 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
               labelText: '过期时间',
               filled: true,
               fillColor: colors.surfaceMuted,
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
@@ -415,14 +413,12 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
               Expanded(
                 child: SelectableText(
                   _displayUrl,
-                  style: TextStyle(
-                      fontSize: 13, color: colors.textPrimary),
+                  style: TextStyle(fontSize: 13, color: colors.textPrimary),
                 ),
               ),
               IconButton(
                 tooltip: '复制链接',
-                icon: Icon(Icons.copy,
-                    size: 20, color: colors.textSecondary),
+                icon: Icon(Icons.copy, size: 20, color: colors.textSecondary),
                 onPressed: _copyUrl,
               ),
             ],
@@ -434,8 +430,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             value: _includePassword,
             onChanged: (v) => setState(() => _includePassword = v ?? true),
             title: Text('在链接中包含密码',
-                style: TextStyle(
-                    fontSize: 14, color: colors.textPrimary)),
+                style: TextStyle(fontSize: 14, color: colors.textPrimary)),
             subtitle: Text(
               '取消勾选后，访问者需要另行输入密码',
               style: TextStyle(fontSize: 12, color: colors.textMuted),
@@ -498,8 +493,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
                 if (!widget.file.isFolder)
                   Text(
                     formatSize(widget.file.size),
-                    style:
-                        TextStyle(fontSize: 12, color: colors.textMuted),
+                    style: TextStyle(fontSize: 12, color: colors.textMuted),
                   ),
               ],
             ),

@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
 
-import '../core/network/cloudreve_api.dart';
-import '../models/file_item.dart';
-import '../providers/api_provider.dart';
-import 'file_info_sheet.dart';
+import '../../core/network/cloudreve_api.dart';
+import '../../models/file_item.dart';
+import '../../providers/api_provider.dart';
+import '../sheet/file_info_sheet.dart';
 
 /// 全屏图片浏览组件：纯黑背景，居中显示，左右滑动切换，
 /// 左上角索引，右上角 X / 详情 / 下载。
@@ -50,8 +50,8 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
             controller: _controller,
             itemCount: widget.images.length,
             onPageChanged: (i) => setState(() => _index = i),
-            itemBuilder: (context, i) => _ImageViewerPage(
-                file: widget.images[i], api: widget.api),
+            itemBuilder: (context, i) =>
+                _ImageViewerPage(file: widget.images[i], api: widget.api),
           ),
           SafeArea(
             child: Padding(
@@ -67,8 +67,8 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
                       Icons.close, () => Navigator.of(context).pop()),
                   _transparentBtn(
                       Icons.info_outline, () => _showDetail(current)),
-                  _transparentBtn(Icons.file_download_outlined,
-                      () => _download(current)),
+                  _transparentBtn(
+                      Icons.file_download_outlined, () => _download(current)),
                 ],
               ),
             ),

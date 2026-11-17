@@ -6,13 +6,13 @@ import 'package:open_filex/open_filex.dart';
 import '../core/log/app_log.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/settings_provider.dart';
-import '../widgets/theme_menu.dart';
+import '../widgets/popup/theme_popup.dart';
 import 'settings_page.dart';
 
 /// 统一设置入口（悬浮侧边栏 →「设置」）。
 ///
 /// 这里只做聚合，不改变任何既有设置逻辑：
-/// - 外观：直接复用 [ThemeModeMenu]；
+/// - 外观：整行点击弹出主题悬浮窗；
 /// - 下载：跳转已有的「下载设置」页 [SettingsPage]；
 /// - 日志：把 [AppLogger] 记录的日志导出成文件。
 class SettingsHubPage extends ConsumerWidget {
@@ -20,8 +20,6 @@ class SettingsHubPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(settingsProvider).themeMode;
-
     return Scaffold(
       backgroundColor: context.appColors.contentBg,
       appBar: AppBar(
@@ -42,20 +40,9 @@ class SettingsHubPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           const _SectionTitle('外观'),
-          _SettingsCard(
+          const _SettingsCard(
             children: [
-              ListTile(
-                leading: Icon(
-                  Icons.brightness_6_outlined,
-                  color: context.appColors.textSecondary,
-                ),
-                title: Text('主题', style: _titleStyle(context)),
-                subtitle: Text(
-                  '当前：${_themeLabel(themeMode)}',
-                  style: _subtitleStyle(context),
-                ),
-                trailing: const ThemeModeMenu(),
-              ),
+              _ThemeSettingRow(),
             ],
           ),
           const SizedBox(height: 20),
@@ -125,8 +112,7 @@ class SettingsHubPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('可直接打开，或复制路径后自行处理',
-                style: _subtitleStyle(dialogContext)),
+            Text('可直接打开，或复制路径后自行处理', style: _subtitleStyle(dialogContext)),
             const SizedBox(height: 8),
             SelectableText(
               path,
@@ -162,16 +148,54 @@ class SettingsHubPage extends ConsumerWidget {
       ),
     );
   }
+}
 
-  String _themeLabel(String mode) {
-    switch (mode) {
-      case 'light':
-        return '亮色';
-      case 'dark':
-        return '暗色';
-      default:
-        return '跟随系统';
-    }
+/// 主题设置行：整行可点，点击后以该行为锚点弹出主题悬浮窗。
+class _ThemeSettingRow extends ConsumerStatefulWidget {
+  const _ThemeSettingRow();
+
+  @override
+  ConsumerState<_ThemeSettingRow> createState() => _ThemeSettingRowState();
+}
+
+class _ThemeSettingRowState extends ConsumerState<_ThemeSettingRow> {
+  /// 锚点：悬浮窗按整行的位置对齐。
+  final GlobalKey _anchorKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeMode = ref.watch(settingsProvider).themeMode;
+    return KeyedSubtree(
+      key: _anchorKey,
+      child: ListTile(
+        leading: Icon(
+          Icons.brightness_6_outlined,
+          color: context.appColors.textSecondary,
+        ),
+        title: Text('主题', style: _titleStyle(context)),
+        subtitle: Text(
+          '当前：${_themeModeLabel(themeMode)}',
+          style: _subtitleStyle(context),
+        ),
+        trailing: Icon(Icons.expand_more, color: context.appColors.textMuted),
+        onTap: () => showThemePicker(
+          context: context,
+          ref: ref,
+          anchorKey: _anchorKey,
+        ),
+      ),
+    );
+  }
+}
+
+String _themeModeLabel(String mode) {
+  switch (mode) {
+    case 'light':
+      return '亮色';
+    case 'dark':
+      return '暗色';
+    default:
+      return '跟随系统';
   }
 }
 

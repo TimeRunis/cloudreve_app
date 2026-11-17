@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
 
-import '../models/file_item.dart';
+import '../../models/file_item.dart';
 
 /// 是否尝试加载缩略图（图片 / 视频）。
 bool hasThumbnail(FileItem f) {
   if (f.isFolder) return false;
   final name = f.name.toLowerCase();
   const exts = [
-    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif',
-    '.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v', '.ts',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.bmp',
+    '.heic',
+    '.heif',
+    '.mp4',
+    '.mkv',
+    '.avi',
+    '.mov',
+    '.webm',
+    '.m4v',
+    '.ts',
   ];
   return exts.any(name.endsWith);
 }
@@ -69,7 +82,9 @@ IconData fileIconForName(String fileName) {
     return Icons.folder_zip_outlined;
   }
   if (name.endsWith('.pdf')) return Icons.picture_as_pdf_outlined;
-  if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.txt')) {
+  if (name.endsWith('.doc') ||
+      name.endsWith('.docx') ||
+      name.endsWith('.txt')) {
     return Icons.description_outlined;
   }
   return Icons.insert_drive_file_outlined;

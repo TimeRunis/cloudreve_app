@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_colors.dart';
+import '../../core/theme/app_colors.dart';
+import 'app_popup.dart';
 
 /// 文件 / 目录操作项。
 enum FileOperation {
@@ -34,11 +35,7 @@ class FileOperationsPopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: context.appColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 8,
-      clipBehavior: Clip.antiAlias,
+    return AppPopup(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.6,
         child: Column(

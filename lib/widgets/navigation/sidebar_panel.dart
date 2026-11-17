@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/theme/app_colors.dart';
-import '../models/file_item.dart';
-import '../providers/directory_provider.dart';
-import '../providers/settings_provider.dart';
-import 'file_icon.dart';
+import '../../core/theme/app_colors.dart';
+import '../../models/file_item.dart';
+import '../../providers/directory_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../file/file_icon.dart';
 
 /// 悬浮侧边栏面板（独立组件）。
 ///
@@ -48,7 +48,8 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final screen = media.size;
-    final maxHeight = screen.height - media.padding.top - media.padding.bottom - 32;
+    final maxHeight =
+        screen.height - media.padding.top - media.padding.bottom - 32;
 
     return SizedBox(
       width: screen.width * 0.75,
@@ -137,9 +138,7 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
           label: '主题（${_themeLabel(ref.watch(settingsProvider).themeMode)}）',
           onTap: widget.onCycleTheme),
       _SidebarItem(
-          icon: Icons.dns_outlined,
-          label: '管理站点',
-          onTap: widget.onManageSites),
+          icon: Icons.dns_outlined, label: '管理站点', onTap: widget.onManageSites),
       _SidebarItem(
           icon: Icons.settings_outlined,
           label: '设置',
@@ -246,9 +245,8 @@ class _GroupHeader extends StatelessWidget {
             const SizedBox(width: 4),
             Icon(icon,
                 size: 16,
-                color: active
-                    ? scheme.primary
-                    : context.appColors.textSecondary),
+                color:
+                    active ? scheme.primary : context.appColors.textSecondary),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -257,9 +255,8 @@ class _GroupHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
-                  color: active
-                      ? scheme.primary
-                      : context.appColors.textSecondary,
+                  color:
+                      active ? scheme.primary : context.appColors.textSecondary,
                   fontWeight: active ? FontWeight.w500 : FontWeight.normal,
                 ),
               ),
@@ -368,8 +365,7 @@ class _FolderNodeState extends ConsumerState<_FolderNode> {
                     child: Row(
                       children: [
                         Icon(Icons.folder_outlined,
-                            size: 16,
-                            color: context.appColors.textSecondary),
+                            size: 16, color: context.appColors.textSecondary),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(

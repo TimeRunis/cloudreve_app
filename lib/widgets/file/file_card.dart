@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../core/network/cloudreve_api.dart';
-import '../core/theme/app_colors.dart';
-import '../models/file_item.dart';
+import '../../core/network/cloudreve_api.dart';
+import '../../core/theme/app_colors.dart';
+import '../../models/file_item.dart';
 import 'file_icon.dart';
 import 'file_thumbnail.dart';
 

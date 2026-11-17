@@ -5,9 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
-import '../core/network/cloudreve_api.dart';
-import '../models/file_item.dart';
-import '../providers/api_provider.dart';
+import '../../core/network/cloudreve_api.dart';
+import '../../models/file_item.dart';
+import '../../providers/api_provider.dart';
 
 /// 视频播放器页面。
 ///
@@ -65,8 +65,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
   Offset? _verticalStartLocal;
   Size _gestureSize = Size.zero;
 
-  bool get _ready =>
-      _controller != null && _controller!.value.isInitialized;
+  bool get _ready => _controller != null && _controller!.value.isInitialized;
 
   double get _aspectRatio {
     final c = _controller;
@@ -79,8 +78,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
   bool get _isPlaying => _controller?.value.isPlaying ?? false;
 
   bool get _hasPlaybackError =>
-      _errorMessage != null ||
-      (_ready && _controller!.value.hasError);
+      _errorMessage != null || (_ready && _controller!.value.hasError);
 
   @override
   void initState() {
@@ -126,8 +124,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
         throw Exception('获取视频播放链接失败');
       }
       final absolute = _absoluteUrl(url, api.site?.normalizedBaseUrl ?? '');
-      final controller =
-          VideoPlayerController.networkUrl(Uri.parse(absolute));
+      final controller = VideoPlayerController.networkUrl(Uri.parse(absolute));
       await controller.initialize();
       if (!mounted) {
         await controller.dispose();
@@ -267,8 +264,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
     final double? selected = _fullscreen
         ? await showDialog<double>(
             context: context,
-            builder: (context) =>
-                _buildFullscreenSpeedPanel(context, speeds),
+            builder: (context) => _buildFullscreenSpeedPanel(context, speeds),
           )
         : await showModalBottomSheet<double>(
             context: context,
@@ -649,8 +645,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
           _buildVideoLayer(),
           _buildGestureLayer(),
           if (_loading)
-            const Center(
-                child: CircularProgressIndicator(color: Colors.white)),
+            const Center(child: CircularProgressIndicator(color: Colors.white)),
           if (!_loading && _hasPlaybackError) _buildErrorView(),
           _buildGestureHud(),
           _buildCenterPlayButton(),
@@ -741,8 +736,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
             TextButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-              label: const Text('重试',
-                  style: TextStyle(color: Colors.white)),
+              label: const Text('重试', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -881,8 +875,8 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
         children: [
           IconButton(
             tooltip: '退出全屏',
-            icon: const Icon(Icons.fullscreen_exit_rounded,
-                color: Colors.white),
+            icon:
+                const Icon(Icons.fullscreen_exit_rounded, color: Colors.white),
             onPressed: _toggleFullscreen,
           ),
           Expanded(
@@ -908,7 +902,8 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
 
   Widget _buildBottomBar() {
     final duration = _controller?.value.duration ?? Duration.zero;
-    final position = _dragPosition ?? _controller?.value.position ?? Duration.zero;
+    final position =
+        _dragPosition ?? _controller?.value.position ?? Duration.zero;
     final safe = MediaQuery.of(context).padding;
     return Container(
       decoration: const BoxDecoration(

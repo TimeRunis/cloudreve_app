@@ -11,8 +11,8 @@ import '../core/download/download_manager.dart';
 import '../core/theme/app_colors.dart';
 import '../models/download_task.dart';
 import '../providers/download_provider.dart';
-import '../widgets/file_icon.dart';
-import '../widgets/popup_item.dart';
+import '../widgets/file/file_icon.dart';
+import '../widgets/popup/popup_item.dart';
 import 'settings_page.dart';
 
 enum _DownloadsMenuAction {

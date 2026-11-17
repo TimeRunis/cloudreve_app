@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_colors.dart';
+import 'app_popup.dart';
 import 'popup_item.dart';
 
 /// 新建/上传菜单动作。
@@ -22,11 +22,7 @@ class AddMenuPopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: context.appColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 8,
-      clipBehavior: Clip.antiAlias,
+    return AppPopup(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.5,
         child: Column(

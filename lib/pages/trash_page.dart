@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import '../providers/api_provider.dart';
-import '../widgets/file_icon.dart';
+import '../widgets/file/file_icon.dart';
 
 /// 回收站页面：展示回收站文件，支持恢复和彻底删除。
 class TrashPage extends ConsumerStatefulWidget {

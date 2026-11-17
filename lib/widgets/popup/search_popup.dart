@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_colors.dart';
+import '../../core/theme/app_colors.dart';
+import 'app_popup.dart';
 
 /// 顶部搜索弹窗（纯组件：只把提交的搜索词通过回调传出）。
 class SearchPopup extends StatefulWidget {
@@ -23,9 +24,7 @@ class _SearchPopupState extends State<SearchPopup> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: context.appColors.surface,
-      borderRadius: BorderRadius.circular(12),
+    return AppPopup(
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

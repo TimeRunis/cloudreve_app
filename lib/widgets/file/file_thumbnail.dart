@@ -2,10 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/network/cloudreve_api.dart';
-import '../core/theme/app_colors.dart';
-import '../models/file_item.dart';
-import '../providers/directory_provider.dart';
+import '../../core/network/cloudreve_api.dart';
+import '../../core/theme/app_colors.dart';
+import '../../models/file_item.dart';
+import '../../providers/directory_provider.dart';
 import 'file_icon.dart';
 
 /// 文件缩略图：图片/视频显示缩略图，其余显示图标。
@@ -37,8 +37,7 @@ class FileThumbnail extends ConsumerWidget {
     }
     final providedApi = api;
     if (providedApi != null) {
-      final cacheKey =
-          '${providedApi.site?.normalizedBaseUrl}|${file.path}';
+      final cacheKey = '${providedApi.site?.normalizedBaseUrl}|${file.path}';
       final future = _thumbnailUrlCache.putIfAbsent(
         cacheKey,
         () => providedApi.getThumbnailUrl(

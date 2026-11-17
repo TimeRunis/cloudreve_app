@@ -9,7 +9,7 @@ import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/site_config_provider.dart';
-import '../widgets/theme_menu.dart';
+import '../widgets/popup/theme_popup.dart';
 import 'site_list_page.dart';
 
 /// 登录页。

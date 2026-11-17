@@ -9,12 +9,12 @@ import '../models/file_item.dart';
 import '../models/share.dart';
 import '../models/site.dart';
 import '../providers/download_provider.dart';
-import '../widgets/file_card.dart';
-import '../widgets/file_icon.dart';
-import '../widgets/file_info_sheet.dart';
-import '../widgets/image_viewer.dart';
-import '../widgets/video_player_viewer.dart';
-import '../widgets/view_panel.dart';
+import '../widgets/file/file_card.dart';
+import '../widgets/file/file_icon.dart';
+import '../widgets/sheet/file_info_sheet.dart';
+import '../widgets/viewer/image_viewer.dart';
+import '../widgets/viewer/video_player_viewer.dart';
+import '../widgets/file/view_panel.dart';
 
 /// 分享访问页：支持公开分享和带密码分享，可浏览分享目录/打开文件。
 class ShareViewerPage extends ConsumerStatefulWidget {

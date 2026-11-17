@@ -6,7 +6,7 @@ import '../core/theme/app_colors.dart';
 import '../models/share.dart';
 import '../providers/api_provider.dart';
 import '../providers/settings_provider.dart';
-import '../widgets/file_icon.dart';
+import '../widgets/file/file_icon.dart';
 import 'share_viewer_page.dart';
 
 /// “我的分享”页面：查看、复制、打开、删除当前用户的分享链接。

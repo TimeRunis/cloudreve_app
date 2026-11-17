@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_colors.dart';
-import '../models/user.dart';
+import '../../core/theme/app_colors.dart';
+import '../../models/user.dart';
+import 'app_popup.dart';
 import 'popup_item.dart';
 
 /// 用户菜单动作。
@@ -20,11 +21,7 @@ class UserMenuPopup extends StatelessWidget {
     final email = user?.email ?? '';
     final tag = user?.group?.name ?? '';
 
-    return Material(
-      color: context.appColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 8,
-      clipBehavior: Clip.antiAlias,
+    return AppPopup(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.6,
         child: Column(

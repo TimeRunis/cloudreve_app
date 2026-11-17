@@ -8,7 +8,7 @@ import '../core/upload/upload_manager.dart';
 import '../models/upload_task.dart';
 import '../providers/settings_provider.dart';
 import '../providers/upload_provider.dart';
-import '../widgets/file_icon.dart';
+import '../widgets/file/file_icon.dart';
 
 /// 上传队列页面。
 ///

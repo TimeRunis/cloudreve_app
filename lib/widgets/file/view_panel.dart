@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_colors.dart';
+import '../../core/theme/app_colors.dart';
+import '../popup/app_popup.dart';
 
 /// 视图设置面板（受控组件：持有本地选中态，把变化通过回调传出）。
 class ViewPanel extends StatefulWidget {
@@ -34,11 +35,7 @@ class _ViewPanelState extends State<ViewPanel> {
   Widget build(BuildContext context) {
     final titleStyle =
         TextStyle(fontSize: 14, color: context.appColors.textSecondary);
-    return Material(
-      color: context.appColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 8,
-      clipBehavior: Clip.antiAlias,
+    return AppPopup(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
@@ -93,7 +90,8 @@ class _ViewPanelState extends State<ViewPanel> {
                   ),
                   Text('$_pageSize',
                       style: TextStyle(
-                          fontSize: 13, color: context.appColors.textSecondary)),
+                          fontSize: 13,
+                          color: context.appColors.textSecondary)),
                 ],
               ),
               Padding(
@@ -146,9 +144,7 @@ class SegmentedGroup<T> extends StatelessWidget {
           for (int i = 0; i < options.length; i++) ...[
             if (i > 0)
               Container(
-                  width: 1,
-                  height: 28,
-                  color: context.appColors.toolbarBorder),
+                  width: 1, height: 28, color: context.appColors.toolbarBorder),
             Expanded(
               child: InkWell(
                 onTap: () => onChanged(options[i].$3),
