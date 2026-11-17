@@ -6,6 +6,7 @@ import '../core/app_events.dart';
 import '../core/network/cloudreve_api.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sites_provider.dart';
+import '../widgets/common/empty_view.dart';
 import 'downloads_page.dart';
 import 'home_page.dart';
 import 'login_page.dart';
@@ -144,54 +145,27 @@ class _RootPageState extends ConsumerState<RootPage>
     final auth = ref.watch(authProvider);
 
     if (sites.isEmpty) {
-      return const _NoSitesPage();
+      return Scaffold(
+        appBar: AppBar(title: const Text('Cloudreve')),
+        body: EmptyView(
+          icon: Icons.cloud_off_outlined,
+          iconSize: 64,
+          title: '还没有配置任何站点',
+          actionLabel: '添加站点',
+          onAction: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SiteEditPage()),
+          ),
+        ),
+      );
     }
     if (auth.loading) {
-      return const _Splash();
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
     if (auth.isLoggedIn) {
       return const HomePage();
     }
     return const LoginPage();
-  }
-}
-
-class _NoSitesPage extends StatelessWidget {
-  const _NoSitesPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Cloudreve')),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_outlined, size: 64),
-            const SizedBox(height: 16),
-            const Text('还没有配置任何站点'),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('添加站点'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SiteEditPage()),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Splash extends StatelessWidget {
-  const _Splash();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
   }
 }
