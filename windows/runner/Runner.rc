@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.timerunis" "\0"
-            VALUE "FileDescription", "speed_app" "\0"
+            VALUE "FileDescription", "Cloudreve" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "speed_app" "\0"
+            VALUE "InternalName", "Cloudreve" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2024 com.timerunis. All rights reserved." "\0"
-            VALUE "OriginalFilename", "speed_app.exe" "\0"
-            VALUE "ProductName", "speed_app" "\0"
+            VALUE "OriginalFilename", "cloudreve.exe" "\0"
+            VALUE "ProductName", "Cloudreve" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
