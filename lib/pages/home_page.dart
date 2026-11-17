@@ -19,6 +19,7 @@ import '../widgets/common/error_view.dart';
 import '../widgets/common/user_avatar.dart';
 import '../widgets/file/file_icon.dart';
 import '../widgets/file_browser/file_browser_view.dart';
+import '../widgets/home/delete_confirm_dialog.dart';
 import '../widgets/home/home_popups.dart';
 import '../widgets/home/home_toolbar.dart';
 import '../widgets/popup/add_menu_popup.dart';
@@ -486,81 +487,17 @@ class _HomePageState extends ConsumerState<HomePage> {
       ];
     }
 
-    var skipSoftDelete = false;
-    var unlink = false;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text('删除 ${selected.length} 项'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '选择删除方式：',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: context.appColors.textSecondary,
-                      ),
-                    ),
-                    RadioListTile<bool>(
-                      value: false,
-                      groupValue: skipSoftDelete,
-                      title: const Text('移入回收站'),
-                      subtitle: const Text('可恢复（取决于站点回收站设置）'),
-                      onChanged: (v) =>
-                          setDialogState(() => skipSoftDelete = v ?? false),
-                    ),
-                    RadioListTile<bool>(
-                      value: true,
-                      groupValue: skipSoftDelete,
-                      title: const Text('彻底删除'),
-                      subtitle: const Text('跳过回收站，不可恢复'),
-                      onChanged: (v) =>
-                          setDialogState(() => skipSoftDelete = v ?? true),
-                    ),
-                    const Divider(),
-                    CheckboxListTile(
-                      value: unlink,
-                      onChanged: (v) =>
-                          setDialogState(() => unlink = v ?? false),
-                      title: const Text('保留物理文件'),
-                      subtitle: const Text('解除引用并保留底层文件，需用户组高级删除权限'),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('取消'),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('确认删除'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final options = await showDeleteConfirmDialog(
+      context,
+      count: selected.length,
     );
-
-    if (confirmed != true || !mounted) return;
+    if (options == null || !mounted) return;
 
     try {
       await ref.read(apiProvider).deleteFiles(
             uris: selected.map((f) => f.path).toList(),
-            unlink: unlink,
-            skipSoftDelete: skipSoftDelete,
+            unlink: options.unlink,
+            skipSoftDelete: options.skipSoftDelete,
           );
       if (!mounted) return;
       if (deletingCurrentFolder) {
@@ -569,7 +506,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         _clearSelection();
         _refresh();
       }
-      _toast(skipSoftDelete ? '已彻底删除' : '已移入回收站');
+      _toast(options.skipSoftDelete ? '已彻底删除' : '已移入回收站');
     } catch (e) {
       print('[HomePage] 删除文件失败: $e');
       if (mounted) _toast('删除失败，请重试');
