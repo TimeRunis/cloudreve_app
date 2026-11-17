@@ -23,6 +23,16 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+// 发布签名配置来自 android/key.properties（与 keystore/ 一并被 .gitignore 忽略）。
+// 没有该文件的环境（例如只跑 debug）会自动回退到 debug 签名。
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader("UTF-8") { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
 android {
     namespace = "com.timerunis.cloudreve"
     compileSdk = flutter.compileSdkVersion
@@ -44,11 +54,21 @@ android {
         versionName = flutterVersionName
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+                storeFile = file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // 有正式密钥就用它，否则回退 debug 签名（保证任何环境都能构建）。
+            signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
     }
 

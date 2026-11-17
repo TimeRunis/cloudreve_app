@@ -48,3 +48,9 @@ app.*.map.json
 /screenshot/
 # 本地 API 参考文档（不提交）
 /docs/
+
+# Android 签名密钥与密码（务必自行备份，不提交）
+/keystore/
+android/key.properties
+# 本地打包产物
+/dist/
