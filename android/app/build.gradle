@@ -51,6 +51,19 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+
+    // .so 以压缩方式进 APK，安装时由系统解压。
+    //
+    // 当前工具链（AGP 7.3）只按 4 KB 对齐未压缩的 .so，Android 15+ 会报
+    // 「APK 文件对齐检查失败 / 未压缩的库未对齐」（16 KB page size）。
+    // 压缩打包后 APK 里不再有未压缩 .so，系统解压时按页大小落盘；
+    // 而 libflutter.so 的 ELF 段本身已是 64 KB 对齐，4 KB / 16 KB 页设备都能加载。
+    // 等升级到 AGP 8.5.1+（自动做 16 KB 对齐）后可以删掉这段。
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 flutter {
