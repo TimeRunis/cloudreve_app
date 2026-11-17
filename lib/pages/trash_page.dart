@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import '../providers/api_provider.dart';
-import '../widgets/file/file_icon.dart';
+import '../widgets/common/confirm_dialog.dart';
+import '../widgets/common/empty_view.dart';
+import '../widgets/common/error_view.dart';
+import '../widgets/trash/trash_item.dart';
 
 /// 回收站页面：展示回收站文件，支持恢复和彻底删除。
 class TrashPage extends ConsumerStatefulWidget {
@@ -24,9 +27,8 @@ class _TrashPageState extends ConsumerState<TrashPage> {
   }
 
   void _load() {
-    _future = ref
-        .read(apiProvider)
-        .listFiles('cloudreve://trash', pageSize: 500);
+    _future =
+        ref.read(apiProvider).listFiles('cloudreve://trash', pageSize: 500);
   }
 
   void _reload() {
@@ -34,24 +36,13 @@ class _TrashPageState extends ConsumerState<TrashPage> {
   }
 
   Future<void> _restore(FileItem item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('恢复文件'),
-        content: Text('确定将「${_displayName(item)}」恢复到原位置吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('恢复'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: '恢复文件',
+      message: '确定将「${trashDisplayName(item)}」恢复到原位置吗？',
+      actionLabel: '恢复',
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     try {
       await ref.read(apiProvider).restoreFiles(uris: [item.path]);
       if (!mounted) return;
@@ -64,32 +55,19 @@ class _TrashPageState extends ConsumerState<TrashPage> {
   }
 
   Future<void> _deleteForever(FileItem item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('彻底删除'),
-        content: Text('确定彻底删除「${_displayName(item)}」吗？此操作不可恢复。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('彻底删除'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: '彻底删除',
+      message: '确定彻底删除「${trashDisplayName(item)}」吗？此操作不可恢复。',
+      actionLabel: '彻底删除',
+      danger: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     try {
       await ref.read(apiProvider).deleteFiles(
-            uris: [item.path],
-            skipSoftDelete: true,
-          );
+        uris: [item.path],
+        skipSoftDelete: true,
+      );
       if (!mounted) return;
       _toast('已彻底删除');
       _reload();
@@ -101,28 +79,6 @@ class _TrashPageState extends ConsumerState<TrashPage> {
 
   void _toast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  String _displayName(FileItem item) {
-    final uri = _restoreUri(item);
-    if (uri.isNotEmpty) {
-      final parsed = Uri.tryParse(uri);
-      final segments = parsed?.pathSegments ?? const <String>[];
-      if (segments.isNotEmpty) {
-        return Uri.decodeComponent(segments.last);
-      }
-    }
-    return item.name;
-  }
-
-  String _restoreUri(FileItem item) =>
-      item.metadata['sys:restore_uri'] as String? ?? '';
-
-  String _originalPath(FileItem item) {
-    final uri = _restoreUri(item);
-    if (uri.isEmpty) return item.path;
-    const prefix = 'cloudreve://my';
-    return uri.startsWith(prefix) ? uri.substring(prefix.length) : uri;
   }
 
   @override
@@ -164,28 +120,14 @@ class _TrashPageState extends ConsumerState<TrashPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                '加载失败：${snapshot.error}',
-                style: TextStyle(color: context.appColors.textSecondary),
-              ),
-            );
+            return ErrorView(message: '加载失败：${snapshot.error}');
           }
           final files = snapshot.data?.files ?? const <FileItem>[];
           if (files.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.delete_outline,
-                      size: 48, color: context.appColors.textMuted),
-                  const SizedBox(height: 8),
-                  Text('回收站是空的',
-                      style: TextStyle(
-                          fontSize: 14,
-                          color: context.appColors.textSecondary)),
-                ],
-              ),
+            return const EmptyView(
+              icon: Icons.delete_outline,
+              iconSize: 48,
+              title: '回收站是空的',
             );
           }
           return ListView.separated(
@@ -195,47 +137,10 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                 Divider(height: 1, color: context.appColors.border),
             itemBuilder: (context, index) {
               final item = files[index];
-              return ListTile(
-                leading: Icon(
-                  fileIconForName(_displayName(item)),
-                  size: 28,
-                  color: context.appColors.textSecondary,
-                ),
-                title: Text(
-                  _displayName(item),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: context.appColors.textPrimary,
-                  ),
-                ),
-                subtitle: Text(
-                  '${formatSize(item.size)} · 原位置：${_originalPath(item)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: context.appColors.textSecondary,
-                  ),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: '恢复',
-                      icon: Icon(Icons.restore,
-                          size: 20, color: context.appColors.textSecondary),
-                      onPressed: () => _restore(item),
-                    ),
-                    IconButton(
-                      tooltip: '彻底删除',
-                      icon: Icon(Icons.delete_outline,
-                          size: 20, color: context.appColors.textSecondary),
-                      onPressed: () => _deleteForever(item),
-                    ),
-                  ],
-                ),
+              return TrashItem(
+                item: item,
+                onRestore: () => _restore(item),
+                onDelete: () => _deleteForever(item),
               );
             },
           );
