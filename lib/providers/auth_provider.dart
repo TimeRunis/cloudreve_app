@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/image/image_loader.dart';
 import '../models/site.dart';
 import '../models/user.dart';
 import 'settings_provider.dart';
@@ -64,13 +65,14 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   /// 为缺失时间戳的令牌打上当前时间（用于提前刷新判断）。
-  TokenPair _stampToken(TokenPair token) =>
-      token.accessIssuedAt == null
-          ? token.copyWith(accessIssuedAt: DateTime.now())
-          : token;
+  TokenPair _stampToken(TokenPair token) => token.accessIssuedAt == null
+      ? token.copyWith(accessIssuedAt: DateTime.now())
+      : token;
 
   Future<void> signOut(Site site) async {
     state = const AuthState();
+    // 退出后清空图片缓存，避免不同账号看到彼此缓存的图片。
+    ImageLoader.instance.clear();
     await ref.read(storageProvider).clearToken(site.id);
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
 
+import '../../core/image/image_loader.dart';
 import '../../core/network/cloudreve_api.dart';
 import '../../models/file_item.dart';
 import '../../providers/api_provider.dart';
@@ -12,6 +13,9 @@ import '../sheet/file_info_sheet.dart';
 
 /// 全屏图片浏览组件：纯黑背景，居中显示，左右滑动切换，
 /// 左上角索引，右上角 X / 详情 / 下载。
+///
+/// 图片统一走 [ImageLoader]：内存缓存 + 最多 5 张并发 + 滑走后台继续加载，
+/// 打开时预取前后各一张。
 class ImageViewer extends ConsumerStatefulWidget {
   final List<FileItem> images;
   final int initialIndex;
@@ -33,10 +37,32 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
   late final PageController _controller =
       PageController(initialPage: widget.initialIndex);
 
+  /// 分享页传入自己的 api；主页走全局 provider。
+  late final CloudreveApi _api = widget.api ?? ref.read(apiProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    _prefetch(_index);
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// 预取前后各一张：只排进加载队列，不阻塞当前页显示。
+  void _prefetch(int index) {
+    for (var i = index - 1; i <= index + 1; i++) {
+      if (i < 0 || i >= widget.images.length) continue;
+      requestCloudreveImage(_api, widget.images[i]);
+    }
+  }
+
+  void _onPageChanged(int index) {
+    setState(() => _index = index);
+    _prefetch(index);
   }
 
   @override
@@ -49,9 +75,9 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
           PageView.builder(
             controller: _controller,
             itemCount: widget.images.length,
-            onPageChanged: (i) => setState(() => _index = i),
+            onPageChanged: _onPageChanged,
             itemBuilder: (context, i) =>
-                _ImageViewerPage(file: widget.images[i], api: widget.api),
+                _ImageViewerPage(file: widget.images[i], api: _api),
           ),
           SafeArea(
             child: Padding(
@@ -94,19 +120,12 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
 
   Future<void> _download(FileItem file) async {
     try {
-      final CloudreveApi api;
-      final provided = widget.api;
-      if (provided != null) {
-        api = provided;
-      } else {
-        api = ref.read(apiProvider);
-      }
-      final url = await api.getFileSourceUrl(file.path);
+      final url = await _api.getFileSourceUrl(file.path);
       if (url == null || url.isEmpty) {
         _toast('获取下载链接失败');
         return;
       }
-      final resp = await api.dio.get<List<int>>(
+      final resp = await _api.dio.get<List<int>>(
         url,
         options: Options(responseType: ResponseType.bytes),
       );
@@ -129,7 +148,8 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
   }
 }
 
-/// 单张图片页：用 dio 下载字节后显示，下载过程展示进度。
+/// 单张图片页：从 [ImageLoader] 取图（缓存 + 后台加载 + 并发上限），
+/// 下载过程展示进度，失败可重试。
 class _ImageViewerPage extends ConsumerStatefulWidget {
   final FileItem file;
   final CloudreveApi? api;
@@ -141,57 +161,51 @@ class _ImageViewerPage extends ConsumerStatefulWidget {
 }
 
 class _ImageViewerPageState extends ConsumerState<_ImageViewerPage> {
+  late final CloudreveApi _api = widget.api ?? ref.read(apiProvider);
+
+  ImageTask? _task;
   Uint8List? _bytes;
-  double? _progress;
   bool _failed = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _start();
   }
 
-  Future<void> _load() async {
-    try {
-      final CloudreveApi api;
-      final provided = widget.api;
-      if (provided != null) {
-        api = provided;
-      } else {
-        api = ref.read(apiProvider);
-      }
-      final url = await api.getFileSourceUrl(widget.file.path);
-      if (url == null || url.isEmpty) {
-        print('[ImageViewer] 获取原图链接失败: ${widget.file.path}');
-        if (mounted) setState(() => _failed = true);
-        return;
-      }
-      final resp = await api.dio.get<List<int>>(
-        url,
-        options: Options(responseType: ResponseType.bytes),
-        onReceiveProgress: (received, total) {
-          if (total > 0 && mounted) {
-            setState(() => _progress = received / total);
-          }
-        },
-      );
-      final data = resp.data;
-      if (data == null || data.isEmpty) {
-        print('[ImageViewer] 图片内容为空: ${widget.file.path}');
-        if (mounted) setState(() => _failed = true);
-        return;
-      }
-      if (!mounted) return;
-      setState(() => _bytes = Uint8List.fromList(data));
-    } catch (e) {
-      print('[ImageViewer] 加载图片失败: ${widget.file.path} -> $e');
-      if (mounted) setState(() => _failed = true);
+  void _start() {
+    final task = requestCloudreveImage(_api, widget.file);
+    _task = task;
+    // 命中缓存：同步拿字节，避免再闪一次加载圈。
+    if (task.isReady) {
+      _bytes = task.bytes;
+      return;
     }
+    // 任务归加载器所有：本页被滑走销毁后下载仍会继续，完成后写入缓存。
+    task.value.then(
+      (bytes) {
+        if (!mounted) return;
+        setState(() => _bytes = bytes);
+      },
+      onError: (Object error) {
+        debugPrint('[ImageViewer] 加载图片失败: ${widget.file.path} -> $error');
+        if (!mounted) return;
+        setState(() => _failed = true);
+      },
+    );
+  }
+
+  void _retry() {
+    setState(() {
+      _failed = false;
+      _bytes = null;
+    });
+    _start();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_failed) return const _ImageViewerError();
+    if (_failed) return _ImageViewerError(onRetry: _retry);
     final bytes = _bytes;
     if (bytes != null) {
       return Image.memory(
@@ -201,24 +215,43 @@ class _ImageViewerPageState extends ConsumerState<_ImageViewerPage> {
         height: double.infinity,
       );
     }
+    final task = _task;
+    if (task == null) {
+      return const Center(
+          child: CircularProgressIndicator(color: Colors.white));
+    }
     return Center(
-      child: CircularProgressIndicator(color: Colors.white, value: _progress),
+      child: ValueListenableBuilder<double?>(
+        valueListenable: task.progress,
+        builder: (context, progress, _) => CircularProgressIndicator(
+          color: Colors.white,
+          value: progress,
+        ),
+      ),
     );
   }
 }
 
 class _ImageViewerError extends StatelessWidget {
-  const _ImageViewerError();
+  final VoidCallback onRetry;
+
+  const _ImageViewerError({required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
-          SizedBox(height: 8),
-          Text('无法加载图片', style: TextStyle(color: Colors.white54)),
+          const Icon(Icons.broken_image_outlined,
+              color: Colors.white54, size: 48),
+          const SizedBox(height: 8),
+          const Text('无法加载图片', style: TextStyle(color: Colors.white54)),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('重试', style: TextStyle(color: Colors.white70)),
+          ),
         ],
       ),
     );
