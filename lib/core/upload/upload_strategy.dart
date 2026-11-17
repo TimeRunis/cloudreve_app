@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../models/upload_task.dart';
+import '../log/app_log.dart';
 import '../network/cloudreve_api.dart';
 
 /// 上传策略接口。
@@ -98,16 +99,27 @@ class OneDriveUploadStrategy extends UploadStrategy {
     final url = task.uploadUrl!;
     final start = index * chunkSize;
     final end = start + bytes.length - 1;
+    final range = 'bytes $start-$end/${task.totalSize}';
+    AppLogger.log.d(
+      '[OneDrive] 分片 $index range=$range bytes=${bytes.length} '
+      'chunkSize=$chunkSize',
+    );
+    if (bytes.isEmpty || end < start) {
+      throw Exception(
+        'OneDrive 分片 $index 的 Content-Range 非法：$range',
+      );
+    }
     final headers = <String, String>{
       'Content-Type': 'application/octet-stream',
-      'Content-Range': 'bytes $start-$end/${task.totalSize}',
-      'Content-Length': '${bytes.length}',
+      'Content-Range': range,
     };
     if (task.credential != null && task.credential!.isNotEmpty) {
       headers['Authorization'] = task.credential!;
     }
 
-    await api.dio.put(
+    // 不手写 Content-Length：由 dio 按实际 body 长度生成，
+    // 避免与服务端预期不一致时被判定为请求非法。
+    final response = await api.dio.put<dynamic>(
       url,
       data: bytes,
       options: Options(
@@ -118,6 +130,13 @@ class OneDriveUploadStrategy extends UploadStrategy {
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
     );
+    if (response.redirects.isNotEmpty) {
+      // 重定向后部分头可能丢失，是 Content-Range「消失」的可疑来源。
+      AppLogger.log.w(
+        '[OneDrive] 分片 $index 响应经过重定向: '
+        '${response.redirects.map((r) => '${r.statusCode} ${r.location}').join(' -> ')}',
+      );
+    }
   }
 
   @override

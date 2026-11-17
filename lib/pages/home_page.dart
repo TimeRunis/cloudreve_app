@@ -30,6 +30,7 @@ import '../widgets/video_player_viewer.dart';
 import '../widgets/view_panel.dart';
 import 'downloads_page.dart';
 import 'my_shares_page.dart';
+import 'settings_hub_page.dart';
 import 'site_list_page.dart';
 import 'trash_page.dart';
 import 'upload_queue_page.dart';
@@ -288,6 +289,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                 onMyShares: () {
                   Navigator.of(context).pop();
                   _openMyShares();
+                },
+                onSettings: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const SettingsHubPage()),
+                  );
                 },
               ),
             ),

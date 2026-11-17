@@ -21,6 +21,7 @@ class SidebarPanel extends ConsumerStatefulWidget {
   final VoidCallback? onTrash;
   final ValueChanged<FileCategory>? onCategory;
   final VoidCallback? onMyShares;
+  final VoidCallback? onSettings;
 
   const SidebarPanel({
     super.key,
@@ -33,6 +34,7 @@ class SidebarPanel extends ConsumerStatefulWidget {
     this.onTrash,
     this.onCategory,
     this.onMyShares,
+    this.onSettings,
   });
 
   @override
@@ -138,6 +140,10 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
           icon: Icons.dns_outlined,
           label: '管理站点',
           onTap: widget.onManageSites),
+      _SidebarItem(
+          icon: Icons.settings_outlined,
+          label: '设置',
+          onTap: widget.onSettings ?? widget.onPlaceholder),
     ];
   }
 

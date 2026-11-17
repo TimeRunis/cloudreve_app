@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../models/upload_task.dart';
+import '../log/app_log.dart';
 import '../wake_lock.dart';
 import '../network/cloudreve_api.dart';
 import '../storage/app_storage.dart';
@@ -260,6 +261,30 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
     try {
       var current = _byId(id)!;
 
+      // 本地文件在入队后可能被改动（截图仍在写入、被同名替换等），
+      // 分片划分就与任务记录对不上了，直接按真实大小重建会话。
+      final localFile = File(current.localPath);
+      if (!await localFile.exists()) {
+        throw Exception('本地文件不存在：${current.localPath}');
+      }
+      final localLength = await localFile.length();
+      if (localLength != current.totalSize) {
+        AppLogger.log.w(
+          '[UploadManager] 本地文件大小变化 ${current.totalSize} -> $localLength，'
+          '重建上传会话：${current.fileName}',
+        );
+        current = current.copyWith(
+          totalSize: localLength,
+          sessionId: '',
+          expires: 0,
+          uploadedChunks: 0,
+          uploadedBytes: 0,
+        );
+        _updateTask(current);
+        _lastBytes[id] = 0;
+        await _persist();
+      }
+
       // 没有可用会话，或旧会话已过期时重新创建会话。
       if (!_hasValidSession(current)) {
         final session = await _createSession(current);
@@ -304,9 +329,13 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
               ? 1
               : (current.totalSize + chunkSize - 1) ~/ chunkSize);
 
-      while (current.uploadedChunks < totalChunks) {
+      while (true) {
         current = _byId(id)!;
         if (current.status != UploadStatus.uploading) return;
+        // 必须用重新读取后的任务状态判断进度：上一轮结束只更新了 _tasks 里的副本，
+        // 局部变量 current 的 uploadedChunks 还是旧值，用它做条件会多跑一个幻影分片，
+        // 造成「进度到 100% 后再发一片 → 400」。
+        if (current.uploadedChunks >= totalChunks) break;
 
         final index = current.uploadedChunks;
         final offset = index * chunkSize;
@@ -314,6 +343,18 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
             ? current.totalSize - offset
             : chunkSize;
         final bytes = await _readChunk(current.localPath, offset, length);
+        AppLogger.log.d(
+          '[UploadManager] 分片 $index/$totalChunks offset=$offset '
+          'length=$length bytes=${bytes.length} '
+          'totalSize=${current.totalSize} chunkSize=$chunkSize',
+        );
+        if (bytes.length != length) {
+          throw Exception(
+            '分片 $index 读取长度异常（期望 $length，实际 ${bytes.length}，'
+            'offset=$offset，任务记录大小 ${current.totalSize}）：'
+            '本地文件可能已改变，请重新添加文件后再上传',
+          );
+        }
         final chunkBase = current.uploadedBytes;
         final chunkTotal = chunkBase + bytes.length;
         final cancelToken = CancelToken();
@@ -360,9 +401,11 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
               // OneDrive 在上传进度到 100% 后偶发 400/连接异常，重发同一分片通常成功。
               if ((isOneDrive && sentAll || isRangeError) &&
                   attempt < maxUploadRetries - 1) {
-                print('[UploadManager] OneDrive 分片 $index '
-                    '发送到 100% 后异常（${e.response?.statusCode}），'
-                    '自动重试第 ${attempt + 1} 次');
+                AppLogger.log.w(
+                  '[UploadManager] OneDrive 分片 $index 发送到 100% 后异常'
+                  '（${e.response?.statusCode}），'
+                  '自动重试第 ${attempt + 1} 次',
+                );
                 await Future<void>.delayed(const Duration(milliseconds: 400));
                 continue;
               }
@@ -401,9 +444,14 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
         ));
         await _persist();
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       final current = _byId(id);
       if (current != null && current.status == UploadStatus.uploading) {
+        AppLogger.log.e(
+          '[UploadManager] 上传失败 ${current.fileName}',
+          error: e,
+          stackTrace: stackTrace,
+        );
         _updateTask(current.copyWith(
           status: UploadStatus.failed,
           speed: 0,

@@ -147,6 +147,7 @@ class UploadTask {
   int get bytesLeft => totalSize - uploadedBytes;
 
   UploadTask copyWith({
+    int? totalSize,
     int? uploadedBytes,
     int? speed,
     UploadStatus? status,
@@ -170,7 +171,7 @@ class UploadTask {
         fileName: fileName,
         targetDirUri: targetDirUri,
         targetUri: targetUri,
-        totalSize: totalSize,
+        totalSize: totalSize ?? this.totalSize,
         lastModified: lastModified,
         mimeType: mimeType,
         uploadedBytes: uploadedBytes ?? this.uploadedBytes,

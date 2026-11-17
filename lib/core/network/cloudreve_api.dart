@@ -6,7 +6,9 @@ import '../../models/site.dart';
 import '../../models/site_config.dart';
 import '../../models/upload_task.dart';
 import '../../models/user.dart';
+import '../log/app_log.dart';
 import 'api_exception.dart';
+import 'log_interceptor.dart';
 import 'tls_override.dart';
 
 /// 验证码结果。
@@ -32,6 +34,9 @@ String pathToUri(String path) {
 }
 
 /// 创建全局唯一的 Dio 实例（基础配置，不含站点相关项）。
+///
+/// 挂载 [createApiLogInterceptor]，所有请求/响应/异常都会进入 AppLogger，
+/// 可在「设置 → 导出日志」里查看。
 Dio createDio() => Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 30),
@@ -39,7 +44,8 @@ Dio createDio() => Dio(BaseOptions(
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-    ));
+    ))
+      ..interceptors.add(createApiLogInterceptor());
 
 /// 分享根目录 URI：`cloudreve://{shareId}[:password]@share`。
 String shareRootUri(String shareId, {String? password}) {
@@ -143,21 +149,27 @@ class CloudreveApi {
     }
     // 按当前站点是否开启「跳过证书校验」更新全局开关。
     TlsTrustManager.skipVerify = site?.skipTlsVerify == true;
-    print('[CloudreveApi] 初始化 site=${site?.name} '
-        'skipTlsVerify=${site?.skipTlsVerify} '
-        '-> TlsTrustManager.skipVerify=${TlsTrustManager.skipVerify}');
+    AppLogger.log.i(
+      '[CloudreveApi] 初始化 site=${site?.name} '
+      'skipTlsVerify=${site?.skipTlsVerify} '
+      '-> TlsTrustManager.skipVerify=${TlsTrustManager.skipVerify}',
+    );
   }
 
   String _url(String path) =>
       path.startsWith('/') ? path.substring(1) : path;
 
   void _logError(String path, Object e) {
-    print('[CloudreveApi] $path 请求失败: $e');
     if (e is DioException) {
-      print('[CloudreveApi] type=${e.type} message=${e.message} '
-          'status=${e.response?.statusCode} '
-          'skipTlsVerify=${TlsTrustManager.skipVerify}');
+      AppLogger.log.e(
+        '[CloudreveApi] $path 请求失败: $e',
+        error: 'type=${e.type} message=${e.message} '
+            'status=${e.response?.statusCode} '
+            'skipTlsVerify=${TlsTrustManager.skipVerify}',
+      );
+      return;
     }
+    AppLogger.log.e('[CloudreveApi] $path 请求失败: $e');
   }
 
   /// 请求前校验 access token：超过 25 分钟则主动刷新。
