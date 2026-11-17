@@ -10,6 +10,7 @@ import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/directory_provider.dart';
 import '../providers/download_provider.dart';
+import '../providers/file_browser_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/site_config_provider.dart';
 import '../providers/upload_provider.dart';
@@ -44,57 +45,62 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  String _path = '/';
   FileCategory? _category;
-  String _viewMode = 'grid'; // grid | list | gallery
-  bool _thumbnails = true;
-  int _pageSize = 50;
-  String _sortKey = 'created_at-asc';
   String _searchKeyword = '';
-  final Set<String> _selected = {};
   DateTime? _lastBackPress;
 
   bool get _isSearchActive => _searchKeyword.trim().isNotEmpty;
 
+  /// 浏览状态（路径 / 视图 / 选择），由 [homeFileBrowserProvider] 持有。
+  FileBrowserState get _browse => ref.read(homeFileBrowserProvider);
+
+  FileBrowserController get _browseCtrl =>
+      ref.read(homeFileBrowserProvider.notifier);
+
+  /// 当前目录路径（`/a/b`，根为 `/`）。
+  String get _path => '/${_browse.pathSegments.join('/')}';
+
+  List<String> _segmentsOf(String path) =>
+      path.split('/').where((s) => s.isNotEmpty).toList();
+
   void _enter(FileItem folder) {
+    _browseCtrl.setPath(_segmentsOf(folder.relativePath));
     setState(() {
-      _path = folder.relativePath;
       _category = null;
       _searchKeyword = '';
-      _selected.clear();
     });
   }
 
+  /// 侧边栏/目录跳转：接收完整路径。
   void _navigateTo(String path) {
+    _browseCtrl.setPath(_segmentsOf(path));
     setState(() {
-      _path = path;
       _category = null;
       _searchKeyword = '';
-      _selected.clear();
+    });
+  }
+
+  /// 面包屑跳转：0 = 根，i = 保留前 i 段。
+  void _navigateToDepth(int depth) {
+    _browseCtrl.setPath(_browse.pathSegments.take(depth).toList());
+    setState(() {
+      _category = null;
+      _searchKeyword = '';
     });
   }
 
   /// 打开侧边栏分类（图片 / 视频 / 音乐 / 文档）。
   void _openCategory(FileCategory category) {
+    _browseCtrl.setPath(const []);
     setState(() {
       _category = category;
-      _path = '/';
       _searchKeyword = '';
-      _selected.clear();
     });
-  }
-
-  /// 计算上一级目录路径。
-  String _parentPath(String path) {
-    final segments = path.split('/').where((s) => s.isNotEmpty).toList();
-    if (segments.isEmpty) return '/';
-    segments.removeLast();
-    return segments.isEmpty ? '/' : '/${segments.join('/')}';
   }
 
   /// 系统返回键：多选时先取消选择；否则分类/非根目录返回上一级，根目录两次返回退出。
   void _handleBackPress() {
-    if (_selected.isNotEmpty) {
+    if (_browse.selectedPaths.isNotEmpty) {
       _clearSelection();
       return;
     }
@@ -106,8 +112,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       setState(() => _category = null);
       return;
     }
-    if (_path != '/') {
-      _navigateTo(_parentPath(_path));
+    if (!_browse.isRoot) {
+      _goUp();
       return;
     }
     final now = DateTime.now();
@@ -163,17 +169,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     return files.where((f) => f.name.toLowerCase().contains(q)).toList();
   }
 
-  void _toggleSelect(FileItem file) {
-    setState(() {
-      if (!_selected.remove(file.path)) {
-        _selected.add(file.path);
-      }
-    });
-  }
+  void _toggleSelect(FileItem file) => _browseCtrl.toggleSelect(file.path);
 
-  void _clearSelection() {
-    setState(() => _selected.clear());
-  }
+  void _clearSelection() => _browseCtrl.clearSelection();
 
   void _open(FileItem file) {
     if (file.isFolder) {
@@ -344,31 +342,31 @@ class _HomePageState extends ConsumerState<HomePage> {
       onSubmitted: (query) {
         final keyword = query.trim();
         if (keyword.isEmpty) return;
-        setState(() {
-          _searchKeyword = keyword;
-          _selected.clear();
-        });
+        _browseCtrl.clearSelection();
+        setState(() => _searchKeyword = keyword);
       },
     );
   }
 
   void _openViewPanel() {
+    final browse = _browse;
+    final ctrl = _browseCtrl;
     showHomeViewPanel(
       context,
-      viewMode: _viewMode,
-      thumbnails: _thumbnails,
-      pageSize: _pageSize,
-      onViewModeChanged: (v) => setState(() => _viewMode = v),
-      onThumbnailsChanged: (v) => setState(() => _thumbnails = v),
-      onPageSizeChanged: (v) => setState(() => _pageSize = v),
+      viewMode: browse.viewMode,
+      thumbnails: browse.thumbnails,
+      pageSize: browse.pageSize,
+      onViewModeChanged: ctrl.setViewMode,
+      onThumbnailsChanged: ctrl.setThumbnails,
+      onPageSizeChanged: ctrl.setPageSize,
     );
   }
 
   void _openSortMenu() {
     showHomeSortMenu(
       context,
-      selected: _sortKey,
-      onSelected: (key) => setState(() => _sortKey = key),
+      selected: _browse.sortKey,
+      onSelected: _browseCtrl.setSortKey,
     );
   }
 
@@ -393,8 +391,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  List<FileItem> _selectedItems() =>
-      _currentFiles().where((f) => _selected.contains(f.path)).toList();
+  List<FileItem> _selectedItems() {
+    final selected = _browse.selectedPaths;
+    return _currentFiles().where((f) => selected.contains(f.path)).toList();
+  }
+
+  /// 返回上一级目录。
+  void _goUp() {
+    final segments = _browse.pathSegments;
+    if (segments.isEmpty) return;
+    _browseCtrl.setPath(segments.sublist(0, segments.length - 1));
+  }
 
   void _handleFileOperation(FileOperation op) {
     if (op == FileOperation.download) {
@@ -557,7 +564,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           );
       if (!mounted) return;
       if (deletingCurrentFolder) {
-        _navigateTo(_parentPath(_path));
+        _goUp();
       } else {
         _clearSelection();
         _refresh();
@@ -598,6 +605,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
+    final browse = ref.watch(homeFileBrowserProvider);
     // 只读不订阅：角标区域用 ListenableBuilder 单独订阅，避免主页每秒整体重建。
     final downloadManager = ref.read(downloadManagerProvider).manager;
     final uploadManager = ref.read(uploadManagerProvider).manager;
@@ -619,7 +627,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             icon: Icon(Icons.menu, color: context.appColors.textPrimary),
             onPressed: _openSidebar,
           ),
-          actions: _selected.isEmpty
+          actions: browse.selectedPaths.isEmpty
               ? [
                   ListenableBuilder(
                     listenable: uploadManager,
@@ -660,14 +668,14 @@ class _HomePageState extends ConsumerState<HomePage> {
               : [
                   AppBarIconButton(
                     icon: Icons.close,
-                    badgeCount: _selected.length,
+                    badgeCount: browse.selectedPaths.length,
                     badgeOffset: const Offset(4, 4),
                     tooltip: '取消选择',
                     onPressed: _clearSelection,
                   ),
                   AppBarIconButton(
                     icon: Icons.more_horiz,
-                    badgeCount: _selected.length,
+                    badgeCount: browse.selectedPaths.length,
                     badgeOffset: const Offset(4, 4),
                     tooltip: '更多操作',
                     onPressed: _openSelectionMenu,
@@ -675,9 +683,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   const SizedBox(width: 4),
                 ],
           bottom: HomeToolbar(
-            path: _path,
+            segments: browse.pathSegments,
             category: _category,
-            onNavigate: _navigateTo,
+            onNavigate: _navigateToDepth,
             onToggleView: _openViewPanel,
             onSort: _openSortMenu,
             onMore: _openMoreMenu,
@@ -767,6 +775,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _handleMoreAction(MoreMenuAction action) {
+    final ctrl = _browseCtrl;
     switch (action) {
       case MoreMenuAction.refresh:
         _refresh();
@@ -775,31 +784,24 @@ class _HomePageState extends ConsumerState<HomePage> {
         _toast('固定到侧边栏功能暂未实现');
         break;
       case MoreMenuAction.selectAll:
-        setState(() {
-          _selected.addAll(_currentFiles().map((f) => f.path));
-        });
+        ctrl.selectAll(_currentFiles());
         break;
       case MoreMenuAction.deselect:
-        setState(() => _selected.clear());
+        ctrl.clearSelection();
         break;
       case MoreMenuAction.invert:
-        final all = _currentFiles().map((f) => f.path).toSet();
-        final inverted = all.difference(_selected);
-        setState(() {
-          _selected
-            ..clear()
-            ..addAll(inverted);
-        });
+        ctrl.invertSelection(_currentFiles());
         break;
     }
   }
 
   Widget _buildListing(DirectoryListing listing) {
+    final browse = _browse;
     return FileBrowserView(
       files: listing.files,
-      viewMode: _viewMode,
-      showThumbnails: _thumbnails,
-      selectedPaths: _selected,
+      viewMode: browse.viewMode,
+      showThumbnails: browse.thumbnails,
+      selectedPaths: browse.selectedPaths,
       onOpen: _open,
       onSelect: _toggleSelect,
     );

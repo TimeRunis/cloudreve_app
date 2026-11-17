@@ -4,18 +4,34 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/directory_provider.dart';
 
 /// 面包屑：可左右滑动的路径层级，末尾目录带朝下箭头；路径变化后自动滚到最右。
+///
+/// 纯展示组件：路径以「层级列表」传入，点击通过 [onNavigate] 传出目标深度
+/// （0 = 根，i = 保留前 i 段），不直接依赖任何 provider。
 class Breadcrumb extends StatefulWidget {
-  final String path;
+  /// 当前路径层级（原始段，渲染时解码）。
+  final List<String> segments;
+
+  /// 分类视图（图片/视频/音乐/文档）；非空时替代普通层级显示。
   final FileCategory? category;
-  final ValueChanged<String> onNavigate;
-  final VoidCallback onOpenCurrentPopup;
+
+  /// 根节点文案与图标，分享页可换成分享名。
+  final String rootLabel;
+  final IconData rootIcon;
+
+  /// 点击某一层：0 = 根，i = 保留前 i 段。
+  final ValueChanged<int> onNavigate;
+
+  /// 点击末尾目录（打开其操作菜单）。
+  final VoidCallback onOpenCurrentMenu;
 
   const Breadcrumb({
     super.key,
-    required this.path,
+    required this.segments,
     this.category,
+    this.rootLabel = '我的文件',
+    this.rootIcon = Icons.home_outlined,
     required this.onNavigate,
-    required this.onOpenCurrentPopup,
+    required this.onOpenCurrentMenu,
   });
 
   @override
@@ -28,7 +44,7 @@ class _BreadcrumbState extends State<Breadcrumb> {
   @override
   void didUpdateWidget(covariant Breadcrumb oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.path != widget.path) {
+    if (oldWidget.segments.join('/') != widget.segments.join('/')) {
       _scrollToEnd();
     }
   }
@@ -46,11 +62,6 @@ class _BreadcrumbState extends State<Breadcrumb> {
     });
   }
 
-  List<String> get _segments =>
-      widget.path.split('/').where((s) => s.isNotEmpty).toList();
-
-  String _pathFor(int index) => '/${_segments.sublist(0, index + 1).join('/')}';
-
   /// 面包屑显示用：URL 解码目录名（不改动内部路径）。
   String _decodeSegment(String s) {
     try {
@@ -62,7 +73,7 @@ class _BreadcrumbState extends State<Breadcrumb> {
 
   @override
   Widget build(BuildContext context) {
-    final segments = _segments;
+    final segments = widget.segments;
     return Material(
       color: context.appColors.surface,
       shape: RoundedRectangleBorder(
@@ -84,17 +95,17 @@ class _BreadcrumbState extends State<Breadcrumb> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.home_outlined,
+                    Icon(widget.rootIcon,
                         size: 18, color: context.appColors.textPrimary),
                     const SizedBox(width: 6),
-                    Text('我的文件',
+                    Text(widget.rootLabel,
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
                             color: context.appColors.textPrimary)),
                   ],
                 ),
-                onTap: () => widget.onNavigate('/'),
+                onTap: () => widget.onNavigate(0),
               ),
               if (widget.category != null) ...[
                 Icon(Icons.chevron_right,
@@ -123,8 +134,8 @@ class _BreadcrumbState extends State<Breadcrumb> {
                     _segmentLabel(
                         _decodeSegment(segments[i]), i == segments.length - 1),
                     onTap: i == segments.length - 1
-                        ? widget.onOpenCurrentPopup
-                        : () => widget.onNavigate(_pathFor(i)),
+                        ? widget.onOpenCurrentMenu
+                        : () => widget.onNavigate(i + 1),
                   ),
                 ],
             ],
