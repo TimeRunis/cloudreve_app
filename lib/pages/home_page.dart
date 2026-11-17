@@ -15,20 +15,14 @@ import '../providers/site_config_provider.dart';
 import '../providers/upload_provider.dart';
 import '../widgets/common/app_bar_icon_button.dart';
 import '../widgets/common/error_view.dart';
-import '../widgets/common/section_title.dart';
 import '../widgets/common/user_avatar.dart';
-import '../widgets/file/file_card.dart';
 import '../widgets/file/file_icon.dart';
-import '../widgets/file/file_list_tile.dart';
-import '../widgets/file/folder_card.dart';
-import '../widgets/file/view_panel.dart';
+import '../widgets/file_browser/file_browser_view.dart';
+import '../widgets/home/home_popups.dart';
 import '../widgets/home/home_toolbar.dart';
-import '../widgets/navigation/sidebar_panel.dart';
 import '../widgets/popup/add_menu_popup.dart';
 import '../widgets/popup/file_operations_popup.dart';
 import '../widgets/popup/more_menu_popup.dart';
-import '../widgets/popup/search_popup.dart';
-import '../widgets/popup/sort_popup.dart';
 import '../widgets/popup/user_menu_popup.dart';
 import '../widgets/sheet/file_info_sheet.dart';
 import '../widgets/sheet/share_create_sheet.dart';
@@ -236,78 +230,30 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _openSidebar() {
     final title =
         ref.read(siteConfigProvider).valueOrNull?.title ?? 'Cloudreve';
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'sidebar',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final offset = Tween<Offset>(
-          begin: const Offset(-0.2, 0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-        return SlideTransition(position: offset, child: child);
-      },
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + 16,
-              left: 16,
-              child: SidebarPanel(
-                title: title,
-                onNavigate: (path) {
-                  Navigator.of(context).pop();
-                  _navigateTo(path);
-                },
-                onPlaceholder: () {
-                  Navigator.of(context).pop();
-                  _toast('功能暂未实现');
-                },
-                onCycleTheme: _cycleTheme,
-                onCategory: (category) {
-                  Navigator.of(context).pop();
-                  _openCategory(category);
-                },
-                onManageSites: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SiteListPage()),
-                  );
-                },
-                onDownloads: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DownloadsPage()),
-                  );
-                },
-                onTrash: () {
-                  Navigator.of(context).pop();
-                  _openTrash();
-                },
-                onMyShares: () {
-                  Navigator.of(context).pop();
-                  _openMyShares();
-                },
-                onSettings: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SettingsHubPage()),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
+    showHomeSidebar(
+      context,
+      title: title,
+      onNavigate: _navigateTo,
+      onPlaceholder: () => _toast('功能暂未实现'),
+      onCycleTheme: _cycleTheme,
+      onCategory: _openCategory,
+      onManageSites: _openManageSites,
+      onDownloads: _openDownloads,
+      onTrash: _openTrash,
+      onMyShares: _openMyShares,
+      onSettings: _openSettings,
+    );
+  }
+
+  void _openManageSites() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SiteListPage()),
+    );
+  }
+
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsHubPage()),
     );
   }
 
@@ -356,223 +302,78 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openUserMenu() {
-    final user = ref.read(authProvider).user;
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'user-menu',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + kToolbarHeight + 8,
-              right: 16,
-              child: UserMenuPopup(
-                user: user,
-                onAction: (action) {
-                  Navigator.of(context).pop();
-                  switch (action) {
-                    case UserMenuAction.logout:
-                      final s = ref.read(currentSiteProvider);
-                      if (s != null) {
-                        ref.read(authProvider.notifier).signOut(s);
-                      }
-                      break;
-                    case UserMenuAction.managePanel:
-                    case UserMenuAction.settings:
-                    case UserMenuAction.profile:
-                      _toast('功能暂未实现');
-                      break;
-                  }
-                },
-              ),
-            ),
-          ],
-        );
-      },
+    showHomeUserMenu(
+      context,
+      user: ref.read(authProvider).user,
+      onAction: _handleUserMenuAction,
     );
   }
 
+  void _handleUserMenuAction(UserMenuAction action) {
+    switch (action) {
+      case UserMenuAction.logout:
+        final site = ref.read(currentSiteProvider);
+        if (site != null) {
+          ref.read(authProvider.notifier).signOut(site);
+        }
+        break;
+      case UserMenuAction.managePanel:
+      case UserMenuAction.settings:
+      case UserMenuAction.profile:
+        _toast('功能暂未实现');
+        break;
+    }
+  }
+
   void _openAddMenu() {
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'add-menu',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + kToolbarHeight + 8,
-              right: 56,
-              child: AddMenuPopup(
-                onAction: (action) {
-                  Navigator.of(context).pop();
-                  if (action == AddMenuAction.uploadFile) {
-                    _pickAndUpload();
-                  } else {
-                    _toast('功能暂未实现：$action');
-                  }
-                },
-              ),
-            ),
-          ],
-        );
+    showHomeAddMenu(
+      context,
+      onAction: (action) {
+        if (action == AddMenuAction.uploadFile) {
+          _pickAndUpload();
+        } else {
+          _toast('功能暂未实现：$action');
+        }
       },
     );
   }
 
   void _openSearch() {
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'search',
-      barrierColor: Colors.black45,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned(
-              top: topPad + 12,
-              left: 12,
-              right: 12,
-              child: SearchPopup(
-                onSubmitted: (query) {
-                  Navigator.of(context).pop();
-                  final keyword = query.trim();
-                  if (keyword.isEmpty) return;
-                  setState(() {
-                    _searchKeyword = keyword;
-                    _selected.clear();
-                  });
-                },
-              ),
-            ),
-          ],
-        );
+    showHomeSearch(
+      context,
+      onSubmitted: (query) {
+        final keyword = query.trim();
+        if (keyword.isEmpty) return;
+        setState(() {
+          _searchKeyword = keyword;
+          _selected.clear();
+        });
       },
     );
   }
 
   void _openViewPanel() {
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'view-panel',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + kToolbarHeight + 40,
-              right: 16,
-              child: ViewPanel(
-                initialViewMode: _viewMode,
-                initialThumbnails: _thumbnails,
-                initialPageSize: _pageSize,
-                onViewModeChanged: (v) => setState(() => _viewMode = v),
-                onThumbnailsChanged: (v) => setState(() => _thumbnails = v),
-                onPageSizeChanged: (v) => setState(() => _pageSize = v),
-              ),
-            ),
-          ],
-        );
-      },
+    showHomeViewPanel(
+      context,
+      viewMode: _viewMode,
+      thumbnails: _thumbnails,
+      pageSize: _pageSize,
+      onViewModeChanged: (v) => setState(() => _viewMode = v),
+      onThumbnailsChanged: (v) => setState(() => _thumbnails = v),
+      onPageSizeChanged: (v) => setState(() => _pageSize = v),
     );
   }
 
   void _openSortMenu() {
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'sort-menu',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + kToolbarHeight + 40,
-              right: 64,
-              child: SortPopup(
-                selected: _sortKey,
-                onSelected: (key) {
-                  Navigator.of(context).pop();
-                  setState(() => _sortKey = key);
-                },
-              ),
-            ),
-          ],
-        );
-      },
+    showHomeSortMenu(
+      context,
+      selected: _sortKey,
+      onSelected: (key) => setState(() => _sortKey = key),
     );
   }
 
   void _openBreadcrumbPopup() {
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'breadcrumb',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + kToolbarHeight + 40,
-              left: 16,
-              child: FileOperationsPopup(
-                kind: FileOperationKind.folder,
-                onAction: (action) {
-                  Navigator.of(context).pop();
-                  _handleFileOperation(action);
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    showHomeFolderOperations(context, onAction: _handleFileOperation);
   }
 
   void _openSelectionMenu() {
@@ -585,37 +386,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     } else {
       kind = FileOperationKind.file;
     }
-
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'selection-menu',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + kToolbarHeight + 8,
-              right: 8,
-              child: FileOperationsPopup(
-                kind: kind,
-                onAction: (action) {
-                  Navigator.of(context).pop();
-                  _handleFileOperation(action);
-                },
-              ),
-            ),
-          ],
-        );
-      },
+    showHomeSelectionOperations(
+      context,
+      kind: kind,
+      onAction: _handleFileOperation,
     );
   }
 
@@ -989,36 +763,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openMoreMenu() {
-    final topPad = MediaQuery.of(context).padding.top;
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'more-menu',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const SizedBox.expand(),
-              ),
-            ),
-            Positioned(
-              top: topPad + kToolbarHeight + 40,
-              right: 8,
-              child: MoreMenuPopup(
-                onAction: (action) {
-                  Navigator.of(context).pop();
-                  _handleMoreAction(action);
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    showHomeMoreMenu(context, onAction: _handleMoreAction);
   }
 
   void _handleMoreAction(MoreMenuAction action) {
@@ -1050,107 +795,13 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildListing(DirectoryListing listing) {
-    final files = listing.files;
-    final folders = files.where((f) => f.isFolder).toList();
-    final fileItems = files.where((f) => !f.isFolder).toList();
-
-    if (files.isEmpty) {
-      return ListView(
-        children: const [SizedBox(height: 80), Center(child: Text('此目录为空'))],
-      );
-    }
-
-    // 列表视图：长方形行
-    if (_viewMode == 'list') {
-      return ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: files.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, i) {
-          final file = files[i];
-          return FileListTile(
-            file: file,
-            isSelected: _selected.contains(file.path),
-            onSelect: () => _toggleSelect(file),
-            onOpen: () => _open(file),
-          );
-        },
-      );
-    }
-
-    // 网格视图：文件夹 + 文件分两段
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      children: [
-        if (folders.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const SectionTitle.content('文件夹'),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 3.0,
-            ),
-            itemCount: folders.length,
-            itemBuilder: (context, i) {
-              final folder = folders[i];
-              return FolderCard(
-                folder: folder,
-                isSelected: _selected.contains(folder.path),
-                onSelect: () => _toggleSelect(folder),
-                onOpen: () => _open(folder),
-              );
-            },
-          ),
-        ],
-        if (fileItems.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          const SectionTitle.content('文件'),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.9,
-            ),
-            itemCount: fileItems.length,
-            itemBuilder: (context, i) {
-              final file = fileItems[i];
-              return FileCard(
-                file: file,
-                isSelected: _selected.contains(file.path),
-                showThumb: _thumbnails,
-                onSelect: () => _toggleSelect(file),
-                onOpen: () => _open(file),
-              );
-            },
-          ),
-        ],
-      ],
+    return FileBrowserView(
+      files: listing.files,
+      viewMode: _viewMode,
+      showThumbnails: _thumbnails,
+      selectedPaths: _selected,
+      onOpen: _open,
+      onSelect: _toggleSelect,
     );
   }
 }
-
-/// 顶部导航栏下方的工具栏：面包屑 + 视图/排序/更多分段按钮组。
-
-/// 面包屑：可左右滑动的路径层级，末尾目录带朝下箭头；路径变化后自动滚到最右。
-
-/// 分段按钮组：视图 / 排序 / 更多，边框包裹 + 内部竖向分隔线。
-
-/// 文件夹卡片（横向：图标 + 名字）。
-
-/// 列表视图（长方形行）。
-
-/// 右上角用户头像。
-
-/// 选择模式下的导航栏按钮：右上角带蓝色圆形数量角标。
-
-/// 导航栏图标按钮：固定 44x44，与头像等其他 actions 对齐；可带数量角标。

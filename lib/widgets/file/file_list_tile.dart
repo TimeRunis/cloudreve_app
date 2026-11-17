@@ -10,12 +10,16 @@ class FileListTile extends StatelessWidget {
   final VoidCallback onSelect;
   final VoidCallback onOpen;
 
+  /// 右侧是否显示「进入」箭头（分享页使用）。
+  final bool showChevron;
+
   const FileListTile({
     super.key,
     required this.file,
     required this.isSelected,
     required this.onSelect,
     required this.onOpen,
+    this.showChevron = false,
   });
 
   @override
@@ -34,6 +38,10 @@ class FileListTile extends StatelessWidget {
       subtitle: Text(file.isFolder ? '文件夹' : formatSize(file.size)),
       selected: isSelected,
       selectedTileColor: scheme.primary.withAlpha(46),
+      trailing: showChevron
+          ? Icon(Icons.chevron_right,
+              size: 18, color: Theme.of(context).colorScheme.outline)
+          : null,
       onTap: onOpen,
     );
   }
