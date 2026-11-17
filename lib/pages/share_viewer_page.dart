@@ -77,6 +77,13 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   void initState() {
     super.initState();
     _password = widget.password;
+    // provider 是全局的，每次进入都从分享根目录开始（顺带清空上次的选择）。
+    // 放到微任务里，避免在构建期间修改 provider 触发 setState 报错。
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(shareFileBrowserProvider.notifier).setPath(const []);
+      }
+    });
     _loadInfo();
   }
 
@@ -253,6 +260,26 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
     _loadFiles();
   }
 
+  /// 返回上一级目录（分享根目录是空路径）。
+  void _goUp() {
+    final segments = _browse.pathSegments;
+    if (segments.isEmpty) return;
+    _navigateToDepth(segments.length - 1);
+  }
+
+  /// 返回：多选时先取消选择；子目录回上一级；只有到了分享根目录才关闭页面。
+  void _handleBack() {
+    if (_isSelectionActive) {
+      _clearSelection();
+      return;
+    }
+    if (_browse.isRoot) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _goUp();
+  }
+
   void _toggleSelect(FileItem file) => _browseCtrl.toggleSelect(file.path);
 
   void _clearSelection() => _browseCtrl.clearSelection();
@@ -371,48 +398,67 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
   @override
   Widget build(BuildContext context) {
     // 订阅浏览状态：多选、视图切换、路径变化后都需要重建。
-    ref.watch(shareFileBrowserProvider);
+    final browse = ref.watch(shareFileBrowserProvider);
     final colors = context.appColors;
-    return Scaffold(
-      backgroundColor: colors.contentBg,
-      appBar: AppBar(
-        backgroundColor: colors.headerBg,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: '返回',
-          icon: Icon(Icons.close, size: 18, color: colors.textSecondary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          _info?.name ?? '分享',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: colors.textPrimary,
+    final atRoot = browse.isRoot;
+    final selecting = browse.selectedPaths.isNotEmpty;
+    // 根目录且没在多选时才允许关闭页面，其余情况交给 _handleBack 逐级处理。
+    final canClose = atRoot && !selecting;
+    return PopScope(
+      canPop: canClose,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: colors.contentBg,
+        appBar: AppBar(
+          backgroundColor: colors.headerBg,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            tooltip: selecting
+                ? '取消选择'
+                : atRoot
+                    ? '关闭'
+                    : '返回上一级',
+            icon: Icon(
+              selecting || atRoot ? Icons.close : Icons.arrow_back,
+              size: selecting || atRoot ? 18 : 20,
+              color: colors.textSecondary,
+            ),
+            onPressed: _handleBack,
           ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: '下载任务',
-            icon: Icon(Icons.download_outlined,
-                size: 20, color: colors.textSecondary),
-            onPressed: _openDownloads,
+          title: Text(
+            _info?.name ?? '分享',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: colors.textPrimary,
+            ),
           ),
-          const SizedBox(width: 8),
-        ],
-        bottom: !_checking && !_locked && _fatalError == null
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(52),
-                child: _isSelectionActive
-                    ? _buildSelectionBar(context)
-                    : _buildToolbar(context),
-              )
-            : null,
+          actions: [
+            IconButton(
+              tooltip: '下载任务',
+              icon: Icon(Icons.download_outlined,
+                  size: 20, color: colors.textSecondary),
+              onPressed: _openDownloads,
+            ),
+            const SizedBox(width: 8),
+          ],
+          bottom: !_checking && !_locked && _fatalError == null
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(52),
+                  child: _isSelectionActive
+                      ? _buildSelectionBar(context)
+                      : _buildToolbar(context),
+                )
+              : null,
+        ),
+        body: _buildBody(context),
       ),
-      body: _buildBody(context),
     );
   }
 
