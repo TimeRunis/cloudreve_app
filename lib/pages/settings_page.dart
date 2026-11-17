@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/common/section_title.dart';
 
 /// 下载设置页面（从下载页右上角「更多 → 下载设置」进入）。
 class SettingsPage extends ConsumerWidget {
@@ -28,7 +29,7 @@ class SettingsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SectionTitle('多线程下载'),
+          const SectionTitle.settings('多线程下载'),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -135,26 +136,6 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 14,
-          color: context.appColors.textSecondary,
-        ),
       ),
     );
   }

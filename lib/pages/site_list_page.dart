@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/site.dart';
 import '../providers/settings_provider.dart';
 import '../providers/sites_provider.dart';
+import '../widgets/common/empty_view.dart';
 import 'site_edit_page.dart';
 
 /// 站点管理 / 切换页。
@@ -18,7 +19,15 @@ class SiteListPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('站点')),
       body: sites.isEmpty
-          ? const _EmptyState()
+          ? EmptyView(
+              icon: Icons.cloud_off_outlined,
+              iconSize: 64,
+              title: '还没有配置任何站点',
+              actionLabel: '添加站点',
+              onAction: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SiteEditPage()),
+              ),
+            )
           : ListView.separated(
               itemCount: sites.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
@@ -102,28 +111,3 @@ class SiteListPage extends ConsumerWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.cloud_off_outlined, size: 64),
-          const SizedBox(height: 16),
-          const Text('还没有配置任何站点'),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('添加站点'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SiteEditPage()),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -5,13 +5,14 @@ import 'package:open_filex/open_filex.dart';
 
 import '../core/log/app_log.dart';
 import '../core/theme/app_colors.dart';
-import '../providers/settings_provider.dart';
-import '../widgets/popup/theme_popup.dart';
+import '../widgets/common/section_title.dart';
+import '../widgets/common/settings_card.dart';
+import '../widgets/settings/theme_setting_row.dart';
 import 'settings_page.dart';
 
 /// 统一设置入口（悬浮侧边栏 →「设置」）。
 ///
-/// 这里只做聚合，不改变任何既有设置逻辑：
+/// 只做聚合，不改变任何既有设置逻辑：
 /// - 外观：整行点击弹出主题悬浮窗；
 /// - 下载：跳转已有的「下载设置」页 [SettingsPage]；
 /// - 日志：把 [AppLogger] 记录的日志导出成文件。
@@ -39,27 +40,17 @@ class SettingsHubPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const _SectionTitle('外观'),
-          const _SettingsCard(
-            children: [
-              _ThemeSettingRow(),
-            ],
-          ),
+          const SectionTitle.settings('外观'),
+          const SettingsCard(children: [ThemeSettingRow()]),
           const SizedBox(height: 20),
-          const _SectionTitle('下载'),
-          _SettingsCard(
+          const SectionTitle.settings('下载'),
+          SettingsCard(
             children: [
-              ListTile(
-                leading: Icon(
-                  Icons.download_outlined,
-                  color: context.appColors.textSecondary,
-                ),
-                title: Text('下载设置', style: _titleStyle(context)),
-                subtitle: Text(
-                  '多线程下载、下载线程数',
-                  style: _subtitleStyle(context),
-                ),
-                trailing: _chevron(context),
+              SettingsTile(
+                icon: Icons.download_outlined,
+                title: '下载设置',
+                subtitle: '多线程下载、下载线程数',
+                trailing: const SettingsChevron(),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SettingsPage()),
                 ),
@@ -67,20 +58,14 @@ class SettingsHubPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          const _SectionTitle('日志'),
-          _SettingsCard(
+          const SectionTitle.settings('日志'),
+          SettingsCard(
             children: [
-              ListTile(
-                leading: Icon(
-                  Icons.description_outlined,
-                  color: context.appColors.textSecondary,
-                ),
-                title: Text('导出日志', style: _titleStyle(context)),
-                subtitle: Text(
-                  '保存到本地文件，便于反馈问题',
-                  style: _subtitleStyle(context),
-                ),
-                trailing: _chevron(context),
+              SettingsTile(
+                icon: Icons.description_outlined,
+                title: '导出日志',
+                subtitle: '保存到本地文件，便于反馈问题',
+                trailing: const SettingsChevron(),
                 onTap: () => _exportLogs(context),
               ),
             ],
@@ -112,7 +97,13 @@ class SettingsHubPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('可直接打开，或复制路径后自行处理', style: _subtitleStyle(dialogContext)),
+            Text(
+              '可直接打开，或复制路径后自行处理',
+              style: TextStyle(
+                fontSize: 12,
+                color: dialogContext.appColors.textMuted,
+              ),
+            ),
             const SizedBox(height: 8),
             SelectableText(
               path,
@@ -146,109 +137,6 @@ class SettingsHubPage extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// 主题设置行：整行可点，点击后以该行为锚点弹出主题悬浮窗。
-class _ThemeSettingRow extends ConsumerStatefulWidget {
-  const _ThemeSettingRow();
-
-  @override
-  ConsumerState<_ThemeSettingRow> createState() => _ThemeSettingRowState();
-}
-
-class _ThemeSettingRowState extends ConsumerState<_ThemeSettingRow> {
-  /// 锚点：悬浮窗按整行的位置对齐。
-  final GlobalKey _anchorKey = GlobalKey();
-
-  @override
-  Widget build(BuildContext context) {
-    final themeMode = ref.watch(settingsProvider).themeMode;
-    return KeyedSubtree(
-      key: _anchorKey,
-      child: ListTile(
-        leading: Icon(
-          Icons.brightness_6_outlined,
-          color: context.appColors.textSecondary,
-        ),
-        title: Text('主题', style: _titleStyle(context)),
-        subtitle: Text(
-          '当前：${_themeModeLabel(themeMode)}',
-          style: _subtitleStyle(context),
-        ),
-        trailing: Icon(Icons.expand_more, color: context.appColors.textMuted),
-        onTap: () => showThemePicker(
-          context: context,
-          ref: ref,
-          anchorKey: _anchorKey,
-        ),
-      ),
-    );
-  }
-}
-
-String _themeModeLabel(String mode) {
-  switch (mode) {
-    case 'light':
-      return '亮色';
-    case 'dark':
-      return '暗色';
-    default:
-      return '跟随系统';
-  }
-}
-
-TextStyle _titleStyle(BuildContext context) => TextStyle(
-      fontSize: 15,
-      color: context.appColors.textPrimary,
-    );
-
-TextStyle _subtitleStyle(BuildContext context) => TextStyle(
-      fontSize: 12,
-      color: context.appColors.textMuted,
-    );
-
-Widget _chevron(BuildContext context) => Icon(
-      Icons.chevron_right,
-      color: context.appColors.textMuted,
-    );
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 14,
-          color: context.appColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _SettingsCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.appColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: context.appColors.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
     );
   }
 }
