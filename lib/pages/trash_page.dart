@@ -160,11 +160,9 @@ class _TrashPageState extends ConsumerState<TrashPage> {
               title: '回收站是空的',
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             itemCount: files.length,
-            separatorBuilder: (_, __) =>
-                Divider(height: 1, color: context.appColors.border),
             itemBuilder: (context, index) {
               final item = files[index];
               return TrashItem(
