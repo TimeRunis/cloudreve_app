@@ -11,12 +11,14 @@ import '../models/site.dart';
 import '../providers/download_provider.dart';
 import '../providers/file_browser_provider.dart';
 import '../widgets/common/error_view.dart';
+import '../widgets/common/selection_actions.dart';
 import '../widgets/common/toolbar_action_group.dart';
 import '../widgets/file/file_icon.dart';
 import '../widgets/file/view_panel.dart';
 import '../widgets/file_browser/file_browser_view.dart';
 import '../widgets/navigation/breadcrumb.dart';
 import '../widgets/popup/app_popup.dart';
+import '../widgets/popup/file_operations_popup.dart';
 import '../widgets/popup/sort_popup.dart';
 import '../widgets/share/share_password_view.dart';
 import '../widgets/sheet/file_info_sheet.dart';
@@ -72,6 +74,16 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
 
   /// 工具栏「排序」按钮，作为排序菜单的锚点。
   final GlobalKey _sortButtonKey = GlobalKey();
+
+  /// 多选时「更多操作」按钮，作为操作菜单的锚点。
+  final GlobalKey _selectionMoreKey = GlobalKey();
+
+  /// 分享页多选可用的操作（只读分享：下载 + 全选 / 反选）。
+  static const List<FileOperation> _selectionOperations = [
+    FileOperation.download,
+    FileOperation.selectAll,
+    FileOperation.invert,
+  ];
 
   @override
   void initState() {
@@ -284,37 +296,39 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
 
   void _clearSelection() => _browseCtrl.clearSelection();
 
-  Future<void> _downloadSelected() async {
-    final selectedFiles = _files
-        .where((f) => _browse.selectedPaths.contains(f.path) && !f.isFolder)
-        .toList();
-    if (selectedFiles.isEmpty) {
-      _toast('文件夹打包下载暂不支持');
-      return;
-    }
-    try {
-      final count = await ref
-          .read(downloadManagerProvider)
-          .manager
-          .enqueueCloudreveFiles(_api, selectedFiles);
-      if (!mounted) return;
-      if (count > 0) _clearSelection();
-      if (count > 0) {
-        _toastWithDownloadsAction('已加入下载队列：$count 个任务');
-      } else {
-        _toast('获取下载链接失败');
-      }
-    } catch (e) {
-      print('[ShareViewerPage] 加入下载队列失败: $e');
-      if (mounted) _toast('加入下载队列失败');
+  /// 多选操作菜单：下载选中项 / 全选 / 反选。
+  void _openSelectionMenu() {
+    showFileOperations(
+      context,
+      anchorKey: _selectionMoreKey,
+      operations: _selectionOperations,
+      onAction: _handleSelectionOperation,
+    );
+  }
+
+  void _handleSelectionOperation(FileOperation operation) {
+    switch (operation) {
+      case FileOperation.download:
+        _downloadSelected();
+      case FileOperation.selectAll:
+        _browseCtrl.selectAll(_files);
+      case FileOperation.invert:
+        _browseCtrl.invertSelection(_files);
+      default:
+        break;
     }
   }
 
-  Future<void> _downloadVisibleFiles() async {
-    final files = _files.where((f) => !f.isFolder).toList();
+  Future<void> _downloadSelected() async {
+    final selected =
+        _files.where((f) => _browse.selectedPaths.contains(f.path)).toList();
+    final files = selected.where((f) => !f.isFolder).toList();
     if (files.isEmpty) {
-      _toast('当前目录没有可下载的文件');
+      _toast('文件夹打包下载暂不支持');
       return;
+    }
+    if (files.length != selected.length) {
+      _toast('文件夹打包下载暂不支持，将只下载选中的文件');
     }
     try {
       final count = await ref
@@ -323,6 +337,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           .enqueueCloudreveFiles(_api, files);
       if (!mounted) return;
       if (count > 0) {
+        _clearSelection();
         _toastWithDownloadsAction('已加入下载队列：$count 个任务');
       } else {
         _toast('获取下载链接失败');
@@ -330,14 +345,6 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
     } catch (e) {
       print('[ShareViewerPage] 加入下载队列失败: $e');
       if (mounted) _toast('加入下载队列失败');
-    }
-  }
-
-  void _handleDownloadTap() {
-    if (_isSelectionActive) {
-      _downloadSelected();
-    } else {
-      _downloadVisibleFiles();
     }
   }
 
@@ -440,20 +447,27 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
             ),
           ),
           actions: [
-            IconButton(
-              tooltip: '下载任务',
-              icon: Icon(Icons.download_outlined,
-                  size: 20, color: colors.textSecondary),
-              onPressed: _openDownloads,
-            ),
-            const SizedBox(width: 8),
+            if (selecting)
+              SelectionActions(
+                count: browse.selectedPaths.length,
+                onClear: _clearSelection,
+                onMore: _openSelectionMenu,
+                moreButtonKey: _selectionMoreKey,
+              )
+            else ...[
+              IconButton(
+                tooltip: '下载任务',
+                icon: Icon(Icons.download_outlined,
+                    size: 20, color: colors.textSecondary),
+                onPressed: _openDownloads,
+              ),
+              const SizedBox(width: 8),
+            ],
           ],
           bottom: !_checking && !_locked && _fatalError == null
               ? PreferredSize(
                   preferredSize: const Size.fromHeight(52),
-                  child: _isSelectionActive
-                      ? _buildSelectionBar(context)
-                      : _buildToolbar(context),
+                  child: _buildToolbar(context),
                 )
               : null,
         ),
@@ -489,11 +503,6 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
                 icon: Icons.swap_vert,
                 tooltip: '排序',
                 onTap: _openSortMenu,
-              ),
-              ToolbarActionItem(
-                icon: Icons.file_download_outlined,
-                tooltip: '下载',
-                onTap: _handleDownloadTap,
               ),
               ToolbarActionItem(
                 icon: Icons.refresh,
@@ -557,34 +566,6 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
         if (_loadingFiles) const LinearProgressIndicator(minHeight: 2),
         Expanded(child: _buildListing()),
       ],
-    );
-  }
-
-  Widget _buildSelectionBar(BuildContext context) {
-    final colors = context.appColors;
-    return Container(
-      color: colors.headerBg,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Text(
-            '已选择 ${_browse.selectedPaths.length} 项',
-            style: TextStyle(fontSize: 14, color: colors.textPrimary),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: _clearSelection,
-            icon: const Icon(Icons.close, size: 18),
-            label: const Text('取消选择'),
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            onPressed: _downloadSelected,
-            icon: const Icon(Icons.file_download_outlined, size: 18),
-            label: Text('下载 (${_browse.selectedPaths.length})'),
-          ),
-        ],
-      ),
     );
   }
 

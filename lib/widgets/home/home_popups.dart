@@ -6,7 +6,6 @@ import '../file/view_panel.dart';
 import '../navigation/sidebar_panel.dart';
 import '../popup/add_menu_popup.dart';
 import '../popup/app_popup.dart';
-import '../popup/file_operations_popup.dart';
 import '../popup/more_menu_popup.dart';
 import '../popup/search_popup.dart';
 import '../popup/user_menu_popup.dart';
@@ -165,45 +164,6 @@ Future<void> showHomeViewPanel(
       onViewModeChanged: onViewModeChanged,
       onThumbnailsChanged: onThumbnailsChanged,
       onPageSizeChanged: onPageSizeChanged,
-    ),
-  );
-}
-
-/// 面包屑末尾目录的操作菜单。
-Future<void> showHomeFolderOperations(
-  BuildContext context, {
-  required GlobalKey anchorKey,
-  required ValueChanged<FileOperation> onAction,
-}) {
-  return showAppPopup<void>(
-    context: context,
-    anchorKey: anchorKey,
-    builder: (dialogContext) => FileOperationsPopup(
-      kind: FileOperationKind.folder,
-      onAction: (action) {
-        Navigator.of(dialogContext).pop();
-        onAction(action);
-      },
-    ),
-  );
-}
-
-/// 多选模式下的操作菜单。
-Future<void> showHomeSelectionOperations(
-  BuildContext context, {
-  required GlobalKey anchorKey,
-  required FileOperationKind kind,
-  required ValueChanged<FileOperation> onAction,
-}) {
-  return showAppPopup<void>(
-    context: context,
-    anchorKey: anchorKey,
-    builder: (dialogContext) => FileOperationsPopup(
-      kind: kind,
-      onAction: (action) {
-        Navigator.of(dialogContext).pop();
-        onAction(action);
-      },
     ),
   );
 }

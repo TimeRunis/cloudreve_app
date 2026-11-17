@@ -16,6 +16,7 @@ import '../providers/site_config_provider.dart';
 import '../providers/upload_provider.dart';
 import '../widgets/common/app_bar_icon_button.dart';
 import '../widgets/common/error_view.dart';
+import '../widgets/common/selection_actions.dart';
 import '../widgets/common/user_avatar.dart';
 import '../widgets/file/file_icon.dart';
 import '../widgets/file_browser/file_browser_view.dart';
@@ -404,9 +405,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openBreadcrumbPopup() {
-    showHomeFolderOperations(
+    showFileOperations(
       context,
       anchorKey: _breadcrumbKey,
+      operations: fileOperationsFor(FileOperationKind.folder),
       onAction: _handleFileOperation,
     );
   }
@@ -421,10 +423,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     } else {
       kind = FileOperationKind.file;
     }
-    showHomeSelectionOperations(
+    showFileOperations(
       context,
       anchorKey: _selectionMoreKey,
-      kind: kind,
+      operations: fileOperationsFor(kind),
       onAction: _handleFileOperation,
     );
   }
@@ -452,6 +454,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     if (op == FileOperation.share) {
       _shareSingleItem();
+      return;
+    }
+    if (op == FileOperation.selectAll) {
+      _browseCtrl.selectAll(_currentFiles());
+      return;
+    }
+    if (op == FileOperation.invert) {
+      _browseCtrl.invertSelection(_currentFiles());
       return;
     }
     const labels = {
@@ -644,22 +654,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                   const SizedBox(width: 8),
                 ]
               : [
-                  AppBarIconButton(
-                    icon: Icons.close,
-                    badgeCount: browse.selectedPaths.length,
-                    badgeOffset: const Offset(4, 4),
-                    tooltip: '取消选择',
-                    onPressed: _clearSelection,
+                  SelectionActions(
+                    count: browse.selectedPaths.length,
+                    onClear: _clearSelection,
+                    onMore: _openSelectionMenu,
+                    moreButtonKey: _selectionMoreKey,
                   ),
-                  AppBarIconButton(
-                    key: _selectionMoreKey,
-                    icon: Icons.more_horiz,
-                    badgeCount: browse.selectedPaths.length,
-                    badgeOffset: const Offset(4, 4),
-                    tooltip: '更多操作',
-                    onPressed: _openSelectionMenu,
-                  ),
-                  const SizedBox(width: 4),
                 ],
           bottom: HomeToolbar(
             segments: browse.pathSegments,
