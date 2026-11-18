@@ -8,6 +8,7 @@ import '../core/theme/app_colors.dart';
 import '../widgets/common/section_title.dart';
 import '../widgets/common/settings_card.dart';
 import '../widgets/settings/theme_setting_row.dart';
+import 'about_page.dart';
 import 'settings_page.dart';
 import 'site_list_page.dart';
 
@@ -83,6 +84,21 @@ class SettingsHubPage extends ConsumerWidget {
                 subtitle: '保存到本地文件，便于反馈问题',
                 trailing: const SettingsChevron(),
                 onTap: () => _exportLogs(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const SectionTitle.settings('关于'),
+          SettingsCard(
+            children: [
+              SettingsTile(
+                icon: Icons.info_outline,
+                title: '关于 Cloudreve',
+                subtitle: '版本、开源仓库与致谢',
+                trailing: const SettingsChevron(),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AboutPage()),
+                ),
               ),
             ],
           ),

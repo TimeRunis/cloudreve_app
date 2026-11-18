@@ -24,6 +24,7 @@ dependencies:
   wakelock_plus: ^1.2.8
   # 锁定 8.x：9.x 与当前 Flutter 3.24 的 Gradle 插件不兼容
   package_info_plus: ^8.3.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -39,3 +40,4 @@ dependency_overrides:
 flutter:
   uses-material-design: true
   assets:
+    - assets/icon/cloudreve_1024.png
