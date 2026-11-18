@@ -10,6 +10,7 @@ import 'pages/root_page.dart';
 import 'providers/settings_provider.dart';
 import 'providers/site_config_provider.dart';
 import 'providers/storage_provider.dart';
+import 'widgets/update/update_download_watcher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +47,7 @@ class CloudreveApp extends ConsumerWidget {
       theme: AppTheme.light(config),
       darkTheme: AppTheme.dark(config),
       themeMode: themeModeFromString(settings.themeMode),
-      home: const RootPage(),
+      home: const UpdateDownloadWatcher(child: RootPage()),
     );
   }
 }

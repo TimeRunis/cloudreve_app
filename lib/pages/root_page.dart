@@ -5,8 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/app_events.dart';
 import '../core/network/cloudreve_api.dart';
 import '../providers/auth_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/sites_provider.dart';
+import '../providers/update_provider.dart';
 import '../widgets/common/empty_view.dart';
+import '../widgets/update/update_flow.dart';
 import 'downloads_page.dart';
 import 'home_page.dart';
 import 'login_page.dart';
@@ -43,6 +46,10 @@ class _RootPageState extends ConsumerState<RootPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _handleClipboardShareLink();
     });
+    // 启动时按设置里的频率检查更新（默认每次启动都检查）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _maybeCheckUpdate();
+    });
   }
 
   @override
@@ -57,7 +64,22 @@ class _RootPageState extends ConsumerState<RootPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       _handleClipboardShareLink();
+      // 「每天 / 7 天 / 30 天」模式下，回到前台时若已到期也会补一次检查。
+      _maybeCheckUpdate();
     }
+  }
+
+  /// 按设置里的频率决定是否检查更新。
+  Future<void> _maybeCheckUpdate() async {
+    final interval = ref.read(settingsProvider).updateCheckInterval;
+    final notifier = ref.read(updateProvider.notifier);
+    if (!notifier.isDue(interval)) return;
+    await UpdateFlow.checkAndPrompt(
+      context,
+      ref,
+      manual: false,
+      onOpenDownloads: _openDownloads,
+    );
   }
 
   Future<void> _handleClipboardShareLink() async {

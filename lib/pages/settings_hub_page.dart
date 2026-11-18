@@ -8,7 +8,9 @@ import '../core/theme/app_colors.dart';
 import '../widgets/common/section_title.dart';
 import '../widgets/common/settings_card.dart';
 import '../widgets/settings/theme_setting_row.dart';
+import '../widgets/settings/update_settings_row.dart';
 import 'about_page.dart';
+import 'downloads_page.dart';
 import 'settings_page.dart';
 import 'site_list_page.dart';
 
@@ -88,6 +90,14 @@ class SettingsHubPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
+          const SectionTitle.settings('更新'),
+          SettingsCard(
+            children: [
+              UpdateCheckRow(onOpenDownloads: () => _openDownloads(context)),
+              const UpdateIntervalRow(),
+            ],
+          ),
+          const SizedBox(height: 20),
           const SectionTitle.settings('关于'),
           SettingsCard(
             children: [
@@ -104,6 +114,13 @@ class SettingsHubPage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// 跳转下载页（「立即更新」把安装包加入队列后直达进度）。
+  void _openDownloads(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const DownloadsPage()),
     );
   }
 

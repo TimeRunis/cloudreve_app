@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/update/update_interval.dart';
 import '../models/site.dart';
 import 'sites_provider.dart';
 import 'storage_provider.dart';
 
-/// 应用设置：主题模式 + 当前站点 id + 下载设置。
+/// 应用设置：主题模式 + 当前站点 id + 下载设置 + 检查更新频率。
 class AppSettings {
   final String themeMode; // system / light / dark
   final String? currentSiteId;
@@ -15,11 +16,15 @@ class AppSettings {
   /// 多线程下载线程数（2-16）。
   final int downloadThreadCount;
 
+  /// 自动检查更新的频率（默认每次启动）。
+  final UpdateCheckInterval updateCheckInterval;
+
   const AppSettings({
     this.themeMode = 'system',
     this.currentSiteId,
     this.multiThreadDownload = false,
     this.downloadThreadCount = 4,
+    this.updateCheckInterval = UpdateCheckInterval.launch,
   });
 
   AppSettings copyWith({
@@ -27,13 +32,14 @@ class AppSettings {
     String? currentSiteId,
     bool? multiThreadDownload,
     int? downloadThreadCount,
+    UpdateCheckInterval? updateCheckInterval,
   }) =>
       AppSettings(
         themeMode: themeMode ?? this.themeMode,
         currentSiteId: currentSiteId ?? this.currentSiteId,
-        multiThreadDownload:
-            multiThreadDownload ?? this.multiThreadDownload,
+        multiThreadDownload: multiThreadDownload ?? this.multiThreadDownload,
         downloadThreadCount: downloadThreadCount ?? this.downloadThreadCount,
+        updateCheckInterval: updateCheckInterval ?? this.updateCheckInterval,
       );
 }
 
@@ -49,6 +55,8 @@ class SettingsNotifier extends Notifier<AppSettings> {
       currentSiteId: storage.getCurrentSiteId(),
       multiThreadDownload: storage.getMultiThreadDownload(),
       downloadThreadCount: storage.getDownloadThreadCount(),
+      updateCheckInterval:
+          UpdateCheckInterval.fromValue(storage.getUpdateCheckInterval()),
     );
   }
 
@@ -71,6 +79,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     final clamped = count.clamp(2, 16).toInt();
     state = state.copyWith(downloadThreadCount: clamped);
     await ref.read(storageProvider).setDownloadThreadCount(clamped);
+  }
+
+  Future<void> setUpdateCheckInterval(UpdateCheckInterval interval) async {
+    state = state.copyWith(updateCheckInterval: interval);
+    await ref.read(storageProvider).setUpdateCheckInterval(interval.value);
   }
 }
 

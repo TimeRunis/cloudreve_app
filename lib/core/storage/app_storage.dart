@@ -20,6 +20,8 @@ class AppStorage {
   static const _kDownloadThreadCount = 'download_thread_count';
   static const _kDownloadTasks = 'download_tasks';
   static const _kUploadTasks = 'upload_tasks';
+  static const _kUpdateCheckInterval = 'update_check_interval';
+  static const _kUpdateLastCheckAt = 'update_last_check_at';
 
   AppStorage(this._prefs, this._secure);
 
@@ -51,11 +53,13 @@ class AppStorage {
   // ---------- 当前站点 ----------
   String? getCurrentSiteId() => _prefs.getString(_kCurrentSiteId);
 
-  Future<void> setCurrentSiteId(String? id) =>
-      id == null ? _prefs.remove(_kCurrentSiteId) : _prefs.setString(_kCurrentSiteId, id);
+  Future<void> setCurrentSiteId(String? id) => id == null
+      ? _prefs.remove(_kCurrentSiteId)
+      : _prefs.setString(_kCurrentSiteId, id);
 
   // ---------- 下载设置 ----------
-  bool getMultiThreadDownload() => _prefs.getBool(_kMultiThreadDownload) ?? false;
+  bool getMultiThreadDownload() =>
+      _prefs.getBool(_kMultiThreadDownload) ?? false;
 
   Future<void> setMultiThreadDownload(bool enabled) =>
       _prefs.setBool(_kMultiThreadDownload, enabled);
@@ -64,6 +68,24 @@ class AppStorage {
 
   Future<void> setDownloadThreadCount(int count) =>
       _prefs.setInt(_kDownloadThreadCount, count);
+
+  // ---------- 检查更新 ----------
+  /// 自动检查频率：launch / daily / weekly / monthly，默认每次启动。
+  String getUpdateCheckInterval() =>
+      _prefs.getString(_kUpdateCheckInterval) ?? 'launch';
+
+  Future<void> setUpdateCheckInterval(String value) =>
+      _prefs.setString(_kUpdateCheckInterval, value);
+
+  /// 上次成功检查更新的时间。
+  DateTime? getUpdateLastCheckAt() {
+    final millis = _prefs.getInt(_kUpdateLastCheckAt);
+    if (millis == null || millis <= 0) return null;
+    return DateTime.fromMillisecondsSinceEpoch(millis);
+  }
+
+  Future<void> setUpdateLastCheckAt(DateTime value) =>
+      _prefs.setInt(_kUpdateLastCheckAt, value.millisecondsSinceEpoch);
 
   // ---------- 下载任务 ----------
   List<DownloadTask> getDownloadTasks() {
@@ -80,8 +102,7 @@ class AppStorage {
   }
 
   Future<void> saveDownloadTasks(List<DownloadTask> tasks) => _prefs.setString(
-      _kDownloadTasks,
-      jsonEncode(tasks.map((e) => e.toJson()).toList()));
+      _kDownloadTasks, jsonEncode(tasks.map((e) => e.toJson()).toList()));
 
   // ---------- 上传任务 ----------
   List<UploadTask> getUploadTasks() {
@@ -98,8 +119,7 @@ class AppStorage {
   }
 
   Future<void> saveUploadTasks(List<UploadTask> tasks) => _prefs.setString(
-      _kUploadTasks,
-      jsonEncode(tasks.map((e) => e.toJson()).toList()));
+      _kUploadTasks, jsonEncode(tasks.map((e) => e.toJson()).toList()));
 
   // ---------- 令牌（安全存储） ----------
   String _tokenKey(String siteId) => 'site.$siteId.token';

@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- 应用内更新：下载安装包后拉起系统安装器（未知来源安装需用户授权） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
     <application
         android:label="Cloudreve"
@@ -61,6 +63,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- 更新安装包：Android 11+ 需要声明才能解析到系统安装器 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:mimeType="application/vnd.android.package-archive"/>
         </intent>
     </queries>
 </manifest>
