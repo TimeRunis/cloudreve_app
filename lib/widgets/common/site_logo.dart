@@ -31,6 +31,32 @@ String? resolveSiteLogoUrl(
   return value.startsWith('/') ? '$base$value' : '$base/$value';
 }
 
+/// 站点未配置 logo 时使用的内置 logo 资源（亮色 / 暗色各一套）。
+String defaultSiteLogoAsset({required bool dark}) =>
+    dark ? 'assets/logo_light.svg' : 'assets/logo.svg';
+
+/// 内置默认 logo：跟随亮 / 暗主题切换 [defaultSiteLogoAsset]。
+class DefaultSiteLogo extends StatelessWidget {
+  /// 固定高度；宽度按 SVG 比例自适应。
+  final double height;
+
+  /// 内置 logo 的 viewBox 比例（1351 × 331），用于加载前占位，避免宽度跳变。
+  static const double _aspectRatio = 1351 / 331;
+
+  const DefaultSiteLogo({super.key, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return SvgPicture.asset(
+      defaultSiteLogoAsset(dark: dark),
+      width: height * _aspectRatio,
+      height: height,
+      fit: BoxFit.contain,
+    );
+  }
+}
+
 /// 站点 logo（跟随站点配置和亮 / 暗主题），加载中或失败时显示 [fallback]。
 ///
 /// 支持 SVG（Cloudreve 默认 logo 就是 svg）与常见位图格式。

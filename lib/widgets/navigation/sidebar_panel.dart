@@ -232,31 +232,9 @@ class _SidebarHeader extends StatelessWidget {
         child: SiteLogo(
           height: 32,
           maxWidth: 160,
-          fallback: const _FallbackLogo(),
+          fallback: const DefaultSiteLogo(height: 32),
         ),
       ),
-    );
-  }
-}
-
-/// 站点未配置 logo（或加载失败）时的默认图标。
-class _FallbackLogo extends StatelessWidget {
-  const _FallbackLogo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF33B5E5), Color(0xFF0086C9)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.cloud, color: Colors.white, size: 18),
     );
   }
 }
