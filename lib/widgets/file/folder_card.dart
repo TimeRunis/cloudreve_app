@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../models/file_item.dart';
-import '../file/file_icon.dart';
+import 'file_icon.dart';
+import 'file_item_icon.dart';
 
 /// 文件夹卡片（横向：图标 + 名字，长按进入选择）。
 ///
@@ -42,8 +43,11 @@ class FolderCard extends StatelessWidget {
               children: [
                 isSelected
                     ? const SelectionCheck(size: 18)
-                    : Icon(Icons.folder,
-                        size: 18, color: context.appColors.textSecondary),
+                    : FileItemIcon(
+                        file: folder,
+                        size: 24,
+                        color: context.appColors.textSecondary,
+                      ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Align(

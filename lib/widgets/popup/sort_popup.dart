@@ -37,7 +37,6 @@ class SortPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPopup(
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.4,
         // 屏幕高度不够时可滚动，避免菜单超出可视区域。
         child: SingleChildScrollView(
           child: Column(

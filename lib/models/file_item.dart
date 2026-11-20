@@ -11,6 +11,9 @@ class FileItem {
   final Map<String, dynamic> metadata;
   final bool owned;
 
+  /// 是否已被分享出去（服务端 `shared` 字段）。
+  final bool shared;
+
   const FileItem({
     required this.type,
     required this.id,
@@ -21,10 +24,33 @@ class FileItem {
     this.size = 0,
     this.metadata = const {},
     this.owned = true,
+    this.shared = false,
   });
 
   bool get isFolder => type == 1;
   bool get isFile => type == 0;
+
+  /// 收藏的分享链接：真实目标 URI，形如
+  /// `cloudreve://geouP:cangku@share`，藏在 `metadata['sys:shared_redirect']`。
+  ///
+  /// 这类条目的 `path` 只是本地快捷方式目录（打开是空目录），真正要访问的
+  /// 是这里记录的分享。
+  String? get sharedRedirect {
+    final value = metadata['sys:shared_redirect'];
+    if (value is String && value.isNotEmpty) return value;
+    return null;
+  }
+
+  /// 分享来源用户 ID（`metadata['sys:shared_owner']`），
+  /// 可用于 `/user/avatar/{id}` 取头像。
+  String? get sharedOwner {
+    final value = metadata['sys:shared_owner'];
+    if (value is String && value.isNotEmpty) return value;
+    return null;
+  }
+
+  /// 是否为「收藏的分享链接」快捷方式。
+  bool get isShareShortcut => sharedRedirect != null;
 
   /// 去掉 cloudreve://my 前缀后的路径。
   String get relativePath {
@@ -47,6 +73,7 @@ class FileItem {
             ? json['metadata'] as Map<String, dynamic>
             : const {},
         owned: json['owned'] as bool? ?? true,
+        shared: json['shared'] as bool? ?? false,
       );
 }
 

@@ -25,6 +25,7 @@ class _SearchPopupState extends State<SearchPopup> {
   @override
   Widget build(BuildContext context) {
     return AppPopup(
+      width: MediaQuery.sizeOf(context).width,
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

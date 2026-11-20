@@ -100,7 +100,6 @@ class _UpdateIntervalRowState extends ConsumerState<UpdateIntervalRow> {
       context: context,
       anchorKey: _anchorKey,
       builder: (popupContext) => AppPopup(
-        width: 190,
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,

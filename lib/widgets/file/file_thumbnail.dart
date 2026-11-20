@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/file_item.dart';
 import '../../providers/directory_provider.dart';
 import 'file_icon.dart';
+import 'file_item_icon.dart';
 
 /// 文件缩略图：图片/视频显示缩略图，其余显示图标。
 ///
@@ -85,8 +86,11 @@ class FileThumbnail extends ConsumerWidget {
     );
   }
 
-  Widget _icon(BuildContext context) =>
-      Icon(fileIcon(file), size: size, color: fileIconColor(context, file));
+  Widget _icon(BuildContext context) => FileItemIcon(
+        file: file,
+        size: size,
+        color: fileIconColor(context, file),
+      );
 }
 
 /// 灰色骨架屏：用于缩略图加载中的占位动画。

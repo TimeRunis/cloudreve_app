@@ -30,6 +30,22 @@ class FileBrowserView extends StatelessWidget {
   /// 空列表占位，默认「此目录为空」。
   final Widget? empty;
 
+  /// 宽屏断点：可用宽度 ≥600 一行 3 张，≥1000（超宽屏）一行 4 张，
+  /// 手机竖屏仍是 2 张。
+  static const double _wideBreakpoint = 600;
+  static const double _ultraWideBreakpoint = 1000;
+
+  /// 宽屏下卡片的目标高度：只增加列数，不把卡片纵向拉高。
+  static const double _wideFolderHeight = 56;
+  static const double _wideFileHeight = 230;
+
+  /// 按可用宽度决定网格列数。
+  static int _columnsFor(double width) {
+    if (width >= _ultraWideBreakpoint) return 4;
+    if (width >= _wideBreakpoint) return 3;
+    return 2;
+  }
+
   const FileBrowserView({
     super.key,
     required this.files,
@@ -79,65 +95,80 @@ class FileBrowserView extends StatelessWidget {
 
     final folders = files.where((f) => f.isFolder).toList();
     final fileItems = files.where((f) => !f.isFolder).toList();
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      children: [
-        if (folders.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const SectionTitle.content('文件夹'),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 3.0,
-            ),
-            itemCount: folders.length,
-            itemBuilder: (context, i) {
-              final folder = folders[i];
-              return FolderCard(
-                folder: folder,
-                isSelected: selectedPaths.contains(folder.path),
-                selectionMode: selecting,
-                onSelect: () => onSelect(folder),
-                onOpen: () => onOpen(folder),
-              );
-            },
-          ),
-        ],
-        if (fileItems.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          const SectionTitle.content('文件'),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.9,
-            ),
-            itemCount: fileItems.length,
-            itemBuilder: (context, i) {
-              final file = fileItems[i];
-              return FileCard(
-                file: file,
-                isSelected: selectedPaths.contains(file.path),
-                selectionMode: selecting,
-                showThumb: showThumbnails,
-                onSelect: () => onSelect(file),
-                onOpen: () => onOpen(file),
-                api: api,
-              );
-            },
-          ),
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 宽屏一行 3 张、超宽屏 4 张；手机竖屏保持原来的 2 张。
+        final columns = _columnsFor(constraints.maxWidth);
+        const gap = 12.0;
+        // ListView 左右各有 16 的内边距，扣掉后再算单张卡片宽度。
+        final cardWidth =
+            (constraints.maxWidth - 32 - gap * (columns - 1)) / columns;
+        final folderRatio = columns == 2
+            ? 3.0
+            : (cardWidth / _wideFolderHeight).clamp(1.6, 8.0);
+        final fileRatio =
+            columns == 2 ? 0.9 : (cardWidth / _wideFileHeight).clamp(0.6, 3.0);
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            if (folders.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const SectionTitle.content('文件夹'),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: gap,
+                  childAspectRatio: folderRatio,
+                ),
+                itemCount: folders.length,
+                itemBuilder: (context, i) {
+                  final folder = folders[i];
+                  return FolderCard(
+                    folder: folder,
+                    isSelected: selectedPaths.contains(folder.path),
+                    selectionMode: selecting,
+                    onSelect: () => onSelect(folder),
+                    onOpen: () => onOpen(folder),
+                  );
+                },
+              ),
+            ],
+            if (fileItems.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const SectionTitle.content('文件'),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: gap,
+                  childAspectRatio: fileRatio,
+                ),
+                itemCount: fileItems.length,
+                itemBuilder: (context, i) {
+                  final file = fileItems[i];
+                  return FileCard(
+                    file: file,
+                    isSelected: selectedPaths.contains(file.path),
+                    selectionMode: selecting,
+                    showThumb: showThumbnails,
+                    onSelect: () => onSelect(file),
+                    onOpen: () => onOpen(file),
+                    api: api,
+                  );
+                },
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

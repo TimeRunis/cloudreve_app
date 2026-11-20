@@ -24,7 +24,6 @@ class ThemeModePopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppPopup(
-      width: 168,
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         mainAxisSize: MainAxisSize.min,

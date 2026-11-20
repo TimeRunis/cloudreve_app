@@ -12,7 +12,6 @@ import '../providers/directory_provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/file_browser_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/site_config_provider.dart';
 import '../providers/upload_provider.dart';
 import '../widgets/common/app_bar_icon_button.dart';
 import '../widgets/common/error_view.dart';
@@ -35,6 +34,7 @@ import '../widgets/viewer/video_player_viewer.dart';
 import 'downloads_page.dart';
 import 'my_shares_page.dart';
 import 'settings_hub_page.dart';
+import 'share_viewer_page.dart';
 import 'trash_page.dart';
 import 'upload_queue_page.dart';
 
@@ -50,6 +50,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   FileCategory? _category;
   String _searchKeyword = '';
   DateTime? _lastBackPress;
+
+  /// 是否处于「与我共享」视图（列出收藏的分享链接）。
+  bool _sharedWithMe = false;
 
   /// 工具栏「排序」按钮，作为排序菜单的锚点。
   final GlobalKey _sortButtonKey = GlobalKey();
@@ -120,8 +123,18 @@ class _HomePageState extends ConsumerState<HomePage> {
     _browseCtrl.setPath(_segmentsOf(folder.relativePath));
     setState(() {
       _category = null;
+      _sharedWithMe = false;
       _searchKeyword = '';
     });
+  }
+
+  /// 侧边栏目录跳转：收藏的分享链接直接打开分享，其余按路径进入。
+  void _openSidebarFolder(FileItem folder) {
+    if (folder.isShareShortcut) {
+      _openShareShortcut(folder);
+      return;
+    }
+    _navigateTo(folder.relativePath);
   }
 
   /// 侧边栏/目录跳转：接收完整路径。
@@ -129,6 +142,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     _browseCtrl.setPath(_segmentsOf(path));
     setState(() {
       _category = null;
+      _sharedWithMe = false;
       _searchKeyword = '';
     });
   }
@@ -138,6 +152,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     _browseCtrl.setPath(_browse.pathSegments.take(depth).toList());
     setState(() {
       _category = null;
+      _sharedWithMe = false;
       _searchKeyword = '';
     });
   }
@@ -147,6 +162,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     _browseCtrl.setPath(const []);
     setState(() {
       _category = category;
+      _sharedWithMe = false;
+      _searchKeyword = '';
+    });
+  }
+
+  /// 打开「与我共享」视图：和图片 / 视频等分类一样，直接在主界面展示。
+  void _openSharedWithMe() {
+    _browseCtrl.setPath(const []);
+    setState(() {
+      _category = null;
+      _sharedWithMe = true;
       _searchKeyword = '';
     });
   }
@@ -159,6 +185,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     if (_isSearchActive) {
       setState(() => _searchKeyword = '');
+      return;
+    }
+    if (_sharedWithMe) {
+      setState(() => _sharedWithMe = false);
       return;
     }
     if (_category != null) {
@@ -180,6 +210,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _refresh() {
+    if (_sharedWithMe) {
+      ref.invalidate(sharedWithMeProvider);
+      return;
+    }
     final category = _category;
     if (_isSearchActive) {
       if (category != null) {
@@ -196,8 +230,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  /// 当前页面展示的文件列表（搜索 / 分类 / 普通目录）。
+  /// 当前页面展示的文件列表（与我共享 / 搜索 / 分类 / 普通目录）。
   List<FileItem> _currentFiles() {
+    if (_sharedWithMe) {
+      return _shapeSharedFiles(
+        ref.read(sharedWithMeProvider).valueOrNull ?? const [],
+      );
+    }
     final keyword = _searchKeyword.trim();
     final category = _category;
     if (_isSearchActive) {
@@ -224,11 +263,27 @@ class _HomePageState extends ConsumerState<HomePage> {
     return files.where((f) => f.name.toLowerCase().contains(q)).toList();
   }
 
+  /// 「与我共享」列表：关键字本地过滤 + 按当前排序规则排序。
+  List<FileItem> _shapeSharedFiles(List<FileItem> files) {
+    final keyword = _searchKeyword.trim();
+    final list = keyword.isEmpty ? files : _filterByQuery(files, keyword);
+    final sort = _sort();
+    if (sort == null) return list;
+    final sorted = [...list];
+    sorted.sort(
+        (a, b) => compareFileItems(a, b, sort.orderBy, sort.orderDirection));
+    return sorted;
+  }
+
   void _toggleSelect(FileItem file) => _browseCtrl.toggleSelect(file.path);
 
   void _clearSelection() => _browseCtrl.clearSelection();
 
   void _open(FileItem file) {
+    if (file.isShareShortcut) {
+      _openShareShortcut(file);
+      return;
+    }
     if (file.isFolder) {
       _enter(file);
     } else if (isImage(file)) {
@@ -241,6 +296,31 @@ class _HomePageState extends ConsumerState<HomePage> {
         builder: (context) => FileInfoSheet(file: file),
       );
     }
+  }
+
+  /// 打开「收藏的分享链接」：真实地址在 metadata 里，打开的是分享页，
+  /// 而不是本地那个空的快捷方式目录。
+  void _openShareShortcut(FileItem file) {
+    final site = ref.read(currentSiteProvider);
+    final redirect = file.sharedRedirect;
+    if (site == null || redirect == null) {
+      _toast('无法打开该分享');
+      return;
+    }
+    final parsed = parseShareLinkFromText(redirect, site.baseUrl);
+    if (parsed == null) {
+      _toast('分享链接格式无法识别');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShareViewerPage(
+          site: site,
+          shareId: parsed.shareId,
+          password: parsed.password,
+        ),
+      ),
+    );
   }
 
   void _openVideoPlayer(FileItem file) {
@@ -281,19 +361,18 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   void _openSidebar() {
-    final title =
-        ref.read(siteConfigProvider).valueOrNull?.title ?? 'Cloudreve';
     showHomeSidebar(
       context,
       anchorKey: _menuButtonKey,
-      title: title,
-      onNavigate: _navigateTo,
+      onNavigate: _openSidebarFolder,
       onPlaceholder: () => _toast('功能暂未实现'),
       onCycleTheme: _cycleTheme,
       onCategory: _openCategory,
       onDownloads: _openDownloads,
       onTrash: _openTrash,
       onMyShares: _openMyShares,
+      sharedWithMeActive: _sharedWithMe,
+      onSharedWithMe: _openSharedWithMe,
       onSettings: _openSettings,
     );
   }
@@ -682,8 +761,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 ],
           bottom: HomeToolbar(
-            segments: browse.pathSegments,
-            category: _category,
+            segments: _sharedWithMe ? const [] : browse.pathSegments,
+            category: _sharedWithMe ? null : _category,
+            rootLabel: _sharedWithMe ? '与我共享' : '我的文件',
+            rootIcon:
+                _sharedWithMe ? Icons.people_outline : Icons.home_outlined,
             viewButtonKey: _viewButtonKey,
             sortButtonKey: _sortButtonKey,
             breadcrumbKey: _breadcrumbKey,
@@ -703,6 +785,20 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget _buildBody() {
     final keyword = _searchKeyword.trim();
     final category = _category;
+
+    if (_sharedWithMe) {
+      final filesAsync = ref.watch(sharedWithMeProvider);
+      return filesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ErrorView(message: e.toString(), onRetry: _refresh),
+        data: (files) => RefreshIndicator(
+          onRefresh: () async => _refresh(),
+          child: _buildListing(
+            DirectoryListing(files: _shapeSharedFiles(files)),
+          ),
+        ),
+      );
+    }
 
     if (_isSearchActive) {
       if (category != null) {

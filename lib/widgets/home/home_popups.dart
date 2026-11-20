@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/file_item.dart';
 import '../../models/user.dart';
 import '../../providers/directory_provider.dart';
 import '../file/view_panel.dart';
@@ -19,14 +20,15 @@ import '../popup/user_menu_popup.dart';
 Future<void> showHomeSidebar(
   BuildContext context, {
   required GlobalKey anchorKey,
-  required String title,
-  required ValueChanged<String> onNavigate,
+  required ValueChanged<FileItem> onNavigate,
   required VoidCallback onPlaceholder,
   required VoidCallback onCycleTheme,
   required ValueChanged<FileCategory> onCategory,
   required VoidCallback onDownloads,
   required VoidCallback onTrash,
   required VoidCallback onMyShares,
+  required bool sharedWithMeActive,
+  required VoidCallback onSharedWithMe,
   required VoidCallback onSettings,
 }) {
   return showAppPopup<void>(
@@ -45,10 +47,10 @@ Future<void> showHomeSidebar(
     builder: (dialogContext) {
       void close() => Navigator.of(dialogContext).pop();
       return SidebarPanel(
-        title: title,
-        onNavigate: (path) {
+        sharedWithMeActive: sharedWithMeActive,
+        onNavigate: (folder) {
           close();
-          onNavigate(path);
+          onNavigate(folder);
         },
         onPlaceholder: () {
           close();
@@ -71,6 +73,10 @@ Future<void> showHomeSidebar(
         onMyShares: () {
           close();
           onMyShares();
+        },
+        onSharedWithMe: () {
+          close();
+          onSharedWithMe();
         },
         onSettings: () {
           close();

@@ -11,6 +11,10 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
   final List<String> segments;
   final FileCategory? category;
 
+  /// 面包屑根节点文案与图标（默认「我的文件」，「与我共享」等视图可覆盖）。
+  final String rootLabel;
+  final IconData rootIcon;
+
   /// 「排序」按钮的 key，排序菜单以它为锚点。
   final Key? sortButtonKey;
 
@@ -34,6 +38,8 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.segments,
     this.category,
+    this.rootLabel = '我的文件',
+    this.rootIcon = Icons.home_outlined,
     this.sortButtonKey,
     this.viewButtonKey,
     this.breadcrumbKey,
@@ -63,6 +69,8 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
               key: breadcrumbKey,
               segments: segments,
               category: category,
+              rootLabel: rootLabel,
+              rootIcon: rootIcon,
               onNavigate: onNavigate,
               onOpenCurrentMenu: onOpenBreadcrumb,
             ),

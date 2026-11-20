@@ -39,7 +39,6 @@ class _ViewPanelState extends State<ViewPanel> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.7,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

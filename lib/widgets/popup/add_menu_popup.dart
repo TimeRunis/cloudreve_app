@@ -24,7 +24,6 @@ class AddMenuPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPopup(
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.5,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

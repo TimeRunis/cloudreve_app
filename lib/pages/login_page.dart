@@ -9,6 +9,7 @@ import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/site_config_provider.dart';
+import '../widgets/common/site_logo.dart';
 import '../widgets/popup/theme_popup.dart';
 import 'site_list_page.dart';
 
@@ -134,8 +135,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.cloud_outlined,
-                    size: 72, color: scheme.primary),
+                SiteLogo(
+                  height: 72,
+                  maxWidth: 240,
+                  fallback: Icon(Icons.cloud_outlined,
+                      size: 72, color: scheme.primary),
+                ),
                 const SizedBox(height: 12),
                 Text(
                   config?.title ?? 'Cloudreve',
@@ -163,9 +168,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure
-                          ? Icons.visibility_off
-                          : Icons.visibility),
+                      icon: Icon(
+                          _obscure ? Icons.visibility_off : Icons.visibility),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
@@ -232,7 +236,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
         child: c == null
             ? const SizedBox(
-                width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))
             : _imageFromDataUri(c.image),
       ),
     );

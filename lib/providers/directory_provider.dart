@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/format/date_time.dart';
 import '../models/file_item.dart';
 import '../models/user.dart';
 import 'api_provider.dart';
@@ -220,6 +221,24 @@ int _compareTime(DateTime? a, DateTime? b) {
   if (b == null) return -1;
   return a.compareTo(b);
 }
+
+/// 「与我共享」：列出所有收藏的分享链接（元数据里带 `sys:shared_redirect`）。
+///
+/// Cloudreve v4 没有「共享给我」的列表接口，但文件搜索条件支持按元数据过滤：
+/// `meta_<key>=`（空值）表示筛选出所有带该元数据键的文件，正好对应
+/// 「保存分享为快捷方式」产生的那批条目。
+final sharedWithMeProvider = FutureProvider<List<FileItem>>((ref) async {
+  final api = ref.watch(apiProvider);
+  final listing = await api.listFiles(
+    'cloudreve://my/?meta_sys:shared_redirect=',
+    pageSize: 500,
+  );
+  final files =
+      listing.files.where((f) => f.isShareShortcut).toList(growable: false);
+  final sorted = [...files];
+  sorted.sort((a, b) => compareNewestFirst(a.updatedAt, b.updatedAt));
+  return sorted;
+});
 
 /// 存储容量。
 final capacityProvider = FutureProvider<Capacity>((ref) {
