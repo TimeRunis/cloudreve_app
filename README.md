@@ -1,49 +1,57 @@
-# cloudreve_app
+# Cloudreve App
 
-基于 [Cloudreve](https://github.com/cloudreve/Cloudreve) **v4** 的 Flutter 客户端（Android），复刻 Cloudreve v4 Web 端外观与交互。
+Cloudreve v4 的第三方 Android 客户端，界面与交互对齐 Web 端，可连接任意自建 Cloudreve v4 站点。
 
-## 功能
+[下载最新版本](https://github.com/TimeRunis/cloudreve_app/releases/latest)（Android 6.0+）
 
-- **登录 / 注销**：邮箱密码登录，自动检测是否需要验证码，令牌使用 `flutter_secure_storage` 安全存储。
-- **多站点管理**：手动添加站点地址，可开关「跳过 TLS 证书校验」，随时切换不同 Cloudreve v4 站点。
-- **文件浏览**：网格 / 列表 / 画廊三种视图，文件夹与文件分段展示，支持缩略图、排序、分页大小调节。
-- **侧边栏**：「我的文件」目录树、与我共享、快速入口（图片/视频/音乐/文档，基于 Cloudreve v4 URI 搜索条件全局过滤，并在面包屑显示分类图标）、主题切换、管理站点、下载任务。
-- **多选与文件操作**：单选/全选/反选，选中后顶栏出现「取消」和「更多」，带选中数量角标；文件操作菜单按「单个文件夹 / 单个文件 / 多选」展示不同操作（进入/打开、下载、分享、重命名、复制、获取直链、详细信息、删除等）。
-- **下载队列**：文件「下载」统一加入全局下载队列，支持后台下载、并发任务调度、暂停/继续/重试/删除、断点续传；下载期间通过 Android 前台服务保持运行（锁屏不中断），App 回到前台自动恢复因网络中断失败的任务；下载进度实时显示在系统通知栏，点击通知进入下载页；下载页按「下载中 / 已完成 / 下载失败」分类并保留总进度卡片，已完成文件可直接打开并显示图片/视频缩略图；右上角菜单可进入下载设置（多线程开关与线程数），任务与进度自动保存，重启后可继续；默认保存到系统 `Download/cloudreve`（系统限制不可写时回退应用目录）。
-- **图片浏览**：双击图片进入全屏纯黑浏览器，左右滑动切换整个目录的图片，左上角显示「当前/总数」，右上角「关闭 / 详情 / 下载」，下载保存到相册，加载过程有进度。
-- **视频播放**：双击视频文件进入播放器，默认竖屏非全屏；仿 B 站操作：单击显示/隐藏控制层、双击播放/暂停、左右滑动快进快退、左侧上下滑亮度、右侧上下滑音量，支持全屏、倍速与锁屏。
-- **主题切换**：跟随系统 / 亮色 / 暗色，配色取自站点配置的主题色板。
-- **检查更新**：从 GitHub Releases 读取最新版本（API 不可用时自动改用 Atom 源），启动时按「每次启动 / 每天 / 每 7 天 / 每 30 天」的频率自动检查，发现新版本弹窗展示版本变化与更新说明；「立即更新」把 APK 加入下载队列（复用下载页的进度与通知栏），下载完成后提示直接安装。设置页可随时手动检查。
-- **返回键**：非根目录返回上一级目录，根目录两次返回退出。
+## 演示
 
 https://github.com/user-attachments/assets/159db441-d745-4716-a672-11234456742b
 
-## 技术栈
+## 功能
 
-- Flutter 3.24.2 / Dart >= 3.4.3
-- [flutter_riverpod](https://pub.dev/packages/flutter_riverpod)：状态管理
-- [dio](https://pub.dev/packages/dio)：网络请求
-- [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage)：令牌安全存储
-- [shared_preferences](https://pub.dev/packages/shared_preferences)：站点与设置持久化
-- [cached_network_image](https://pub.dev/packages/cached_network_image)：图片缓存
-- [video_player](https://pub.dev/packages/video_player)：视频播放
-- [path_provider](https://pub.dev/packages/path_provider)：下载目录与缩略图缓存定位
-- [open_filex](https://pub.dev/packages/open_filex)：打开已完成下载的文件
-- [video_thumbnail](https://pub.dev/packages/video_thumbnail)：本地视频缩略图
-- [wakelock_plus](https://pub.dev/packages/wakelock_plus)：下载期间保持屏幕关闭后 CPU 唤醒
-- [gal](https://pub.dev/packages/gal)：图片保存到相册
+### 站点与账号
 
-## 运行
+- 邮箱密码登录，自动识别并完成登录验证码
+- 多站点添加、编辑、删除与切换，可跳过 TLS 证书校验（自签名证书）
+- 自动同步站点 logo、主题色和用户头像
 
-```bash
-flutter pub get
-flutter run
-```
+### 文件管理
 
-需要 Flutter SDK 3.24 及以上版本。
+- 网格 / 列表布局，可开关缩略图、调整排序与分页大小
+- 网格视图按屏幕宽度自适应 2 / 3 / 4 列
+- 文件夹与文件分区展示，面包屑导航，关键词搜索
+- 多选、全选、反选，支持批量下载与删除
+- 图片、视频、音乐、文档分类浏览
+- 侧边栏目录树，实时显示存储空间用量
+- 回收站：恢复文件、彻底删除
 
-## 接口说明
+### 分享
 
-- Cloudreve v4 API，基础路径：`{站点地址}/api/v4`
-- 认证方式：`Authorization: Bearer <access_token>`
-- 首次使用请在「添加站点」中填入你的 Cloudreve v4 站点地址（如 `https://v.timerunis.cn`）
+- 创建分享：无密码 / 随机密码 / 自定义密码，可设置有效期、README 展示与视图设置
+- 创建后直接复制链接，可选是否在链接中携带密码
+- 「我的分享」列表：打开、复制链接、删除
+- 「与我共享」：集中查看他人分享，支持密码访问
+- 已分享内容显示角标；他人分享的快捷方式显示分享者头像，点击直接进入
+
+### 上传与下载
+
+- 全局下载队列：多任务同时下载、暂停 / 继续 / 重试、断点续传
+- 锁屏或切换后台不中断，网络恢复后自动重试
+- 通知栏实时进度，点击通知直达下载页
+- 下载页按「下载中 / 已完成 / 失败」分类，显示总进度与图片 / 视频缩略图
+- 下载线程数可调，重启应用后任务继续
+- 下载完成可直接打开文件
+- 上传队列：选择本地文件上传、暂停 / 取消、断点续传、通知栏进度
+
+### 图片与视频
+
+- 图片：全屏黑底浏览，左右滑动切换整个目录，一键保存到相册
+- 视频：单击显隐控制层、双击暂停、左右滑动快进快退、左侧调亮度 / 右侧调音量，支持全屏、倍速与锁定控制层
+
+### 外观与设置
+
+- 跟随系统 / 亮色 / 暗色主题，配色取自站点主题色
+- 简体中文与 English，可跟随系统
+- 检查更新：从 GitHub Releases 获取版本，检查频率可调，新版本 APK 直接加入下载队列并安装
+- 返回键逐级返回目录，根目录连按两次退出
