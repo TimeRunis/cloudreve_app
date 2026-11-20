@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/file_item.dart';
 import '../file/file_icon.dart';
 import '../file/file_thumbnail.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 文件详情底部面板（纯展示组件）。
 class FileInfoSheet extends StatelessWidget {
@@ -34,9 +35,9 @@ class FileInfoSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _row(context, '类型', file.isFolder ? '文件夹' : '文件'),
-            if (!file.isFolder) _row(context, '大小', formatSize(file.size)),
-            _row(context, '路径', readableCloudrevePath(file.path)),
+            _row(context, tr('类型'), file.isFolder ? tr('文件夹') : tr('文件')),
+            if (!file.isFolder) _row(context, tr('大小'), formatSize(file.size)),
+            _row(context, tr('路径'), readableCloudrevePath(file.path)),
           ],
         ),
       ),

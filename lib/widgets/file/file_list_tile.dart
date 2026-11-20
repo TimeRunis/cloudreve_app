@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/file_item.dart';
 import 'file_icon.dart';
 import 'file_item_icon.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 文件列表行（列表视图）：左侧选择按钮 + 名称 + 大小。
 class FileListTile extends StatelessWidget {
@@ -32,14 +33,14 @@ class FileListTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: IconButton(
-        tooltip: '选择',
+        tooltip: tr('选择'),
         icon: isSelected
             ? const SelectionCheck(size: 22)
             : FileItemIcon(file: file, size: 28),
         onPressed: onSelect,
       ),
       title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(file.isFolder ? '文件夹' : formatSize(file.size)),
+      subtitle: Text(file.isFolder ? tr('文件夹') : formatSize(file.size)),
       selected: isSelected,
       selectedTileColor: scheme.primary.withAlpha(46),
       trailing: showChevron && !selectionMode

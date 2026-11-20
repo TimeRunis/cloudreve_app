@@ -10,6 +10,7 @@ import '../widgets/download/download_task_card.dart';
 import '../widgets/download/downloads_menu_popup.dart';
 import '../widgets/popup/app_popup.dart';
 import 'settings_page.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 下载页面：下载中 / 已完成 / 下载失败三个分类。
 class DownloadsPage extends ConsumerStatefulWidget {
@@ -20,14 +21,12 @@ class DownloadsPage extends ConsumerStatefulWidget {
 }
 
 class _DownloadsPageState extends ConsumerState<DownloadsPage> {
-  static const _tabs = ['下载中', '已完成', '下载失败'];
-
-  /// 右上角「更多」按钮，作为菜单悬浮窗的锚点。
   final GlobalKey _moreKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
     final manager = ref.watch(downloadManagerProvider).manager;
+    final tabs = [tr('下载中'), tr('已完成'), tr('下载失败')];
     // 直接监听 ChangeNotifier，保证进度 / 状态每次都实时刷新。
     return ListenableBuilder(
       listenable: manager,
@@ -42,7 +41,7 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
             tasks.where((t) => t.status != DownloadStatus.completed).toList();
 
         return DefaultTabController(
-          length: _tabs.length,
+          length: tabs.length,
           child: Scaffold(
             backgroundColor: context.appColors.contentBg,
             appBar: AppBar(
@@ -50,17 +49,17 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                tooltip: '返回',
+                tooltip: tr('返回'),
                 icon: Icon(Icons.arrow_back,
                     color: context.appColors.textPrimary),
                 onPressed: () => Navigator.of(context).pop(),
               ),
-              title: Text('下载',
+              title: Text(tr('下载'),
                   style: TextStyle(color: context.appColors.textPrimary)),
               actions: [
                 IconButton(
                   key: _moreKey,
-                  tooltip: '更多操作',
+                  tooltip: tr('更多操作'),
                   icon: Icon(Icons.more_horiz,
                       color: context.appColors.textPrimary),
                   onPressed: _openMoreMenu,
@@ -73,9 +72,9 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
                 indicatorColor: Theme.of(context).colorScheme.primary,
                 indicatorWeight: 2,
                 tabs: [
-                  Tab(text: '${_tabs[0]} (${downloading.length})'),
-                  Tab(text: '${_tabs[1]} (${completed.length})'),
-                  Tab(text: '${_tabs[2]} (${failed.length})'),
+                  Tab(text: '${tabs[0]} (${downloading.length})'),
+                  Tab(text: '${tabs[1]} (${completed.length})'),
+                  Tab(text: '${tabs[2]} (${failed.length})'),
                 ],
               ),
             ),
@@ -134,9 +133,13 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
 
   Widget _emptyTab(int tab) {
     final (icon, title, subtitle) = switch (tab) {
-      1 => (Icons.check_circle_outline, '没有已完成的下载', '下载完成后会显示在这里，可在此直接打开文件'),
-      2 => (Icons.error_outline, '没有下载失败的任务', '失败的任务可在这里重试或删除'),
-      _ => (Icons.download_outlined, '暂无下载中的任务', '选中文件后点「下载」即可加入队列'),
+      1 => (
+          Icons.check_circle_outline,
+          tr('没有已完成的下载'),
+          tr('下载完成后会显示在这里，可在此直接打开文件')
+        ),
+      2 => (Icons.error_outline, tr('没有下载失败的任务'), tr('失败的任务可在这里重试或删除')),
+      _ => (Icons.download_outlined, tr('暂无下载中的任务'), tr('选中文件后点「下载」即可加入队列')),
     };
     return EmptyView(icon: icon, title: title, subtitle: subtitle);
   }
@@ -176,19 +179,19 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('清空已完成'),
-        content: const Text('将删除全部已完成的下载记录，已下载的文件会保留。'),
+        title: Text(tr('清空已完成')),
+        content: Text(tr('将删除全部已完成的下载记录，已下载的文件会保留。')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('确定清空'),
+            child: Text(tr('确定清空')),
           ),
         ],
       ),

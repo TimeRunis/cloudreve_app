@@ -10,6 +10,7 @@ import '../../core/network/cloudreve_api.dart';
 import '../../models/file_item.dart';
 import '../../providers/api_provider.dart';
 import '../sheet/file_info_sheet.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 全屏图片浏览组件：纯黑背景，居中显示，左右滑动切换，
 /// 左上角索引，右上角 X / 详情 / 下载。
@@ -180,7 +181,7 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
     try {
       final url = await _api.getFileSourceUrl(file.path);
       if (url == null || url.isEmpty) {
-        _toast('获取下载链接失败');
+        _toast(tr('获取下载链接失败'));
         return;
       }
       final resp = await _api.dio.get<List<int>>(
@@ -189,14 +190,14 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
       );
       final bytes = resp.data;
       if (bytes == null || bytes.isEmpty) {
-        _toast('下载失败');
+        _toast(tr('下载失败'));
         return;
       }
       await Gal.putImageBytes(Uint8List.fromList(bytes));
-      _toast('已保存到相册');
+      _toast(tr('已保存到相册'));
     } catch (e) {
       print('[ImageViewer] 下载失败: ${file.path} -> $e');
-      _toast('下载失败');
+      _toast(tr('下载失败'));
     }
   }
 
@@ -401,11 +402,11 @@ class _ImageViewerError extends StatelessWidget {
           const Icon(Icons.broken_image_outlined,
               color: Colors.white54, size: 48),
           const SizedBox(height: 8),
-          const Text('无法加载图片', style: TextStyle(color: Colors.white54)),
+          Text(tr('无法加载图片'), style: TextStyle(color: Colors.white54)),
           const SizedBox(height: 8),
           TextButton(
             onPressed: onRetry,
-            child: const Text('重试', style: TextStyle(color: Colors.white70)),
+            child: Text(tr('重试'), style: TextStyle(color: Colors.white70)),
           ),
         ],
       ),

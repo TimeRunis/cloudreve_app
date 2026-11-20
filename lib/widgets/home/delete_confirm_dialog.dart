@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 删除方式：是否跳过回收站、是否保留物理文件。
 class DeleteOptions {
@@ -27,14 +28,14 @@ Future<DeleteOptions?> showDeleteConfirmDialog(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setDialogState) => AlertDialog(
-        title: Text('删除 $count 项'),
+        title: Text(tr('删除 {count} 项', args: {'count': count})),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '选择删除方式：',
+                tr('选择删除方式：'),
                 style: TextStyle(
                   fontSize: 13,
                   color: context.appColors.textSecondary,
@@ -43,16 +44,16 @@ Future<DeleteOptions?> showDeleteConfirmDialog(
               RadioListTile<bool>(
                 value: false,
                 groupValue: skipSoftDelete,
-                title: const Text('移入回收站'),
-                subtitle: const Text('可恢复（取决于站点回收站设置）'),
+                title: Text(tr('移入回收站')),
+                subtitle: Text(tr('可恢复（取决于站点回收站设置）')),
                 onChanged: (v) =>
                     setDialogState(() => skipSoftDelete = v ?? false),
               ),
               RadioListTile<bool>(
                 value: true,
                 groupValue: skipSoftDelete,
-                title: const Text('彻底删除'),
-                subtitle: const Text('跳过回收站，不可恢复'),
+                title: Text(tr('彻底删除')),
+                subtitle: Text(tr('跳过回收站，不可恢复')),
                 onChanged: (v) =>
                     setDialogState(() => skipSoftDelete = v ?? true),
               ),
@@ -60,8 +61,8 @@ Future<DeleteOptions?> showDeleteConfirmDialog(
               CheckboxListTile(
                 value: unlink,
                 onChanged: (v) => setDialogState(() => unlink = v ?? false),
-                title: const Text('保留物理文件'),
-                subtitle: const Text('解除引用并保留底层文件，需用户组高级删除权限'),
+                title: Text(tr('保留物理文件')),
+                subtitle: Text(tr('解除引用并保留底层文件，需用户组高级删除权限')),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ],
@@ -70,7 +71,7 @@ Future<DeleteOptions?> showDeleteConfirmDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -82,7 +83,7 @@ Future<DeleteOptions?> showDeleteConfirmDialog(
                 unlink: unlink,
               ),
             ),
-            child: const Text('确认删除'),
+            child: Text(tr('确认删除')),
           ),
         ],
       ),

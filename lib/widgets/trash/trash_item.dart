@@ -5,6 +5,7 @@ import '../../core/format/date_time.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/file_item.dart';
 import '../file/file_icon.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 回收站条目记录的原位置 URI（`sys:restore_uri`）。
 String trashRestoreUri(FileItem item) =>
@@ -100,7 +101,8 @@ class TrashItem extends StatelessWidget {
                           ],
                           const SizedBox(height: 2),
                           Text(
-                            '原位置：${trashOriginalPath(item)}',
+                            tr('原位置：{path}',
+                                args: {'path': trashOriginalPath(item)}),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -119,13 +121,13 @@ class TrashItem extends StatelessWidget {
                   children: [
                     _actionButton(
                       Icons.restore,
-                      '恢复',
+                      tr('恢复'),
                       onRestore,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     _actionButton(
                       Icons.delete_outline,
-                      '彻底删除',
+                      tr('彻底删除'),
                       onDelete,
                       color: Theme.of(context).colorScheme.error,
                     ),

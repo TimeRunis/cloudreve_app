@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../i18n/app_localizations.dart';
 
 /// Cloudreve API 统一异常。
 class ApiException implements Exception {
@@ -50,16 +51,16 @@ String _friendlyMessage(DioException e) {
     case DioExceptionType.connectionTimeout:
     case DioExceptionType.sendTimeout:
     case DioExceptionType.receiveTimeout:
-      return '请求超时';
+      return tr('请求超时');
     case DioExceptionType.connectionError:
-      return '网络连接失败';
+      return tr('网络连接失败');
     case DioExceptionType.badResponse:
-      return '服务器错误 (${e.response?.statusCode})';
+      return tr('服务器错误 ({code})', args: {'code': '${e.response?.statusCode}'});
     default:
       final err = e.error?.toString() ?? '';
       if (err.contains('CERTIFICATE') || err.contains('Handshake')) {
-        return '证书校验失败，请到「站点」设置里开启该站点的「跳过 HTTPS 证书校验」';
+        return tr('证书校验失败，请到「站点」设置里开启该站点的「跳过 HTTPS 证书校验」');
       }
-      return e.message ?? '请求失败';
+      return e.message ?? tr('请求失败');
   }
 }

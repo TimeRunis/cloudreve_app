@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
+import '../i18n/app_localizations.dart';
 
 /// 应用日志，基于三方包 `logger`：控制台 + 文件双输出。
 ///
@@ -64,7 +65,7 @@ class AppLogger {
     } catch (e, stackTrace) {
       // 文件不可写时退化为仅控制台，不影响应用启动。
       _consoleOnly.e(
-        '[AppLogger] 初始化文件日志失败，仅输出到控制台',
+        tr('[AppLogger] 初始化文件日志失败，仅输出到控制台'),
         error: e,
         stackTrace: stackTrace,
       );
@@ -87,7 +88,7 @@ class AppLogger {
     if (source != null && await source.exists()) {
       return source.copy(target.path);
     }
-    await target.writeAsString('（暂无日志）\n', flush: true);
+    await target.writeAsString(tr('（暂无日志）\n'), flush: true);
     return target;
   }
 }

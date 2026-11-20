@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import 'app_bar_icon_button.dart';
 
 /// 多选模式下 AppBar 右侧的统一操作区：取消选择 + 更多操作（带数量角标）。
@@ -27,6 +28,7 @@ class SelectionActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -34,7 +36,7 @@ class SelectionActions extends StatelessWidget {
           icon: Icons.close,
           badgeCount: count,
           badgeOffset: const Offset(4, 4),
-          tooltip: '取消选择',
+          tooltip: l10n.t('取消选择'),
           onPressed: onClear,
         ),
         AppBarIconButton(
@@ -42,7 +44,7 @@ class SelectionActions extends StatelessWidget {
           icon: Icons.more_horiz,
           badgeCount: count,
           badgeOffset: const Offset(4, 4),
-          tooltip: '更多操作',
+          tooltip: l10n.t('更多操作'),
           onPressed: onMore,
         ),
         const SizedBox(width: 4),

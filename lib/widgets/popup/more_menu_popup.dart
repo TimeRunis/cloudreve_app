@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_popup.dart';
 import 'popup_item.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 更多操作菜单动作。
 enum MoreMenuAction { refresh, pin, selectAll, deselect, invert }
@@ -23,20 +24,20 @@ class MoreMenuPopup extends StatelessWidget {
           children: [
             PopupItem(
                 icon: Icons.refresh,
-                label: '刷新',
+                label: tr('刷新'),
                 onTap: () => onAction(MoreMenuAction.refresh)),
             Divider(height: 1, color: context.appColors.border),
             PopupItem(
                 icon: Icons.select_all,
-                label: '全选',
+                label: tr('全选'),
                 onTap: () => onAction(MoreMenuAction.selectAll)),
             PopupItem(
                 icon: Icons.deselect,
-                label: '取消选择',
+                label: tr('取消选择'),
                 onTap: () => onAction(MoreMenuAction.deselect)),
             PopupItem(
                 icon: Icons.flip_to_back,
-                label: '反选',
+                label: tr('反选'),
                 onTap: () => onAction(MoreMenuAction.invert)),
           ],
         ),

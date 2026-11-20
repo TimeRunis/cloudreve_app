@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../models/upload_task.dart';
+import '../i18n/app_localizations.dart';
 import '../log/app_log.dart';
 import '../wake_lock.dart';
 import '../network/cloudreve_api.dart';
@@ -48,8 +49,7 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   List<UploadTask> get tasks => List.unmodifiable(_tasks);
 
-  int get activeCount =>
-      _tasks.where((t) => t.isActive).length;
+  int get activeCount => _tasks.where((t) => t.isActive).length;
 
   int get uploadingCount =>
       _tasks.where((t) => t.status == UploadStatus.uploading).length;
@@ -60,8 +60,7 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
   int get failedCount =>
       _tasks.where((t) => t.status == UploadStatus.failed).length;
 
-  int get totalSpeed =>
-      _tasks.fold(0, (sum, t) => sum + t.speed);
+  int get totalSpeed => _tasks.fold(0, (sum, t) => sum + t.speed);
 
   bool get overwrite => _overwrite;
 
@@ -238,9 +237,8 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   void _schedule() {
     if (_disposed) return;
-    var running = _tasks
-        .where((t) => t.status == UploadStatus.uploading)
-        .length;
+    var running =
+        _tasks.where((t) => t.status == UploadStatus.uploading).length;
     for (final task in _tasks) {
       if (task.status != UploadStatus.waiting) continue;
       // 只上传属于当前站点的任务，避免切换站点后传到错误位置。
@@ -253,8 +251,8 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _startUpload(UploadTask task) async {
     final id = task.id;
-    _updateTask(
-        task.copyWith(status: UploadStatus.uploading, speed: 0, clearError: true));
+    _updateTask(task.copyWith(
+        status: UploadStatus.uploading, speed: 0, clearError: true));
     _lastBytes[id] = task.uploadedBytes;
     _updateWakeLock();
 
@@ -265,7 +263,8 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
       // 分片划分就与任务记录对不上了，直接按真实大小重建会话。
       final localFile = File(current.localPath);
       if (!await localFile.exists()) {
-        throw Exception('本地文件不存在：${current.localPath}');
+        throw Exception(
+            tr('本地文件不存在：{path}', args: {'path': current.localPath}));
       }
       final localLength = await localFile.length();
       if (localLength != current.totalSize) {
@@ -289,7 +288,7 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
       if (!_hasValidSession(current)) {
         final session = await _createSession(current);
         if (session.sessionId.isEmpty) {
-          throw Exception('创建上传会话失败');
+          throw Exception(tr('创建上传会话失败'));
         }
         current = current.copyWith(
           sessionId: session.sessionId,
@@ -297,9 +296,8 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
           expires: session.expires,
           uploadedChunks: 0,
           uploadedBytes: 0,
-          uploadUrl: session.uploadUrls.isNotEmpty
-              ? session.uploadUrls.first
-              : '',
+          uploadUrl:
+              session.uploadUrls.isNotEmpty ? session.uploadUrls.first : '',
           credential: session.credential ?? '',
           storageType: session.storagePolicyType ?? '',
           relay: session.relay,
@@ -313,7 +311,8 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
       // 选定并固化当前任务的上传策略，便于断点续传时复用。
       var strategy = _strategyFor(current);
       if (strategy == null) {
-        throw Exception('没有适配的上传策略: ${current.storageType}');
+        throw Exception(
+            tr('没有适配的上传策略：{type}', args: {'type': current.storageType}));
       }
       if (current.strategyId != strategy.id) {
         current = current.copyWith(strategyId: strategy.id);
@@ -339,9 +338,8 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
 
         final index = current.uploadedChunks;
         final offset = index * chunkSize;
-        final length = index == totalChunks - 1
-            ? current.totalSize - offset
-            : chunkSize;
+        final length =
+            index == totalChunks - 1 ? current.totalSize - offset : chunkSize;
         final bytes = await _readChunk(current.localPath, offset, length);
         AppLogger.log.d(
           '[UploadManager] 分片 $index/$totalChunks offset=$offset '
@@ -350,9 +348,7 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
         );
         if (bytes.length != length) {
           throw Exception(
-            '分片 $index 读取长度异常（期望 $length，实际 ${bytes.length}，'
-            'offset=$offset，任务记录大小 ${current.totalSize}）：'
-            '本地文件可能已改变，请重新添加文件后再上传',
+            tr('本地文件可能已改变，请重新添加文件后再上传'),
           );
         }
         final chunkBase = current.uploadedBytes;
@@ -381,7 +377,7 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
           const maxUploadRetries = 3;
           final isOneDrive = current.strategyId == 'onedrive' ||
               current.storageType == 'onedrive';
-          for (var attempt = 0; ; attempt++) {
+          for (var attempt = 0;; attempt++) {
             sentAll = false;
             try {
               await strategy.uploadChunk(
@@ -396,8 +392,7 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
               break;
             } on DioException catch (e) {
               if (CancelToken.isCancel(e)) return;
-              final isRangeError =
-                  e.response?.statusCode == 400 && isOneDrive;
+              final isRangeError = e.response?.statusCode == 400 && isOneDrive;
               // OneDrive 在上传进度到 100% 后偶发 400/连接异常，重发同一分片通常成功。
               if ((isOneDrive && sentAll || isRangeError) &&
                   attempt < maxUploadRetries - 1) {
@@ -497,8 +492,7 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
     return DateTime.now().millisecondsSinceEpoch < task.expires * 1000;
   }
 
-  Future<List<int>> _readChunk(
-      String localPath, int offset, int length) async {
+  Future<List<int>> _readChunk(String localPath, int offset, int length) async {
     final file = File(localPath);
     final raf = await file.open();
     try {
@@ -527,10 +521,8 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
   /// 进程保持前台优先级，网络不会被系统挂起。
   void _updateWakeLock() {
     if (_disposed) return;
-    final hasUploading =
-        _tasks.any((t) => t.status == UploadStatus.uploading);
-    final hasWaiting =
-        _tasks.any((t) => t.status == UploadStatus.waiting);
+    final hasUploading = _tasks.any((t) => t.status == UploadStatus.uploading);
+    final hasWaiting = _tasks.any((t) => t.status == UploadStatus.waiting);
     if (hasUploading || hasWaiting) {
       AppWakeLock.acquire('upload');
       _notifyForegroundService(start: true);
@@ -542,26 +534,24 @@ class UploadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   /// 汇总当前上传总进度，更新 / 启动前台服务通知。
   void _notifyForegroundService({required bool start}) {
-    final uploading = _tasks
-        .where((t) => t.status == UploadStatus.uploading)
-        .toList();
-    final waiting = _tasks
-        .where((t) => t.status == UploadStatus.waiting)
-        .toList();
+    final uploading =
+        _tasks.where((t) => t.status == UploadStatus.uploading).toList();
+    final waiting =
+        _tasks.where((t) => t.status == UploadStatus.waiting).toList();
     if (uploading.isEmpty && waiting.isEmpty) return;
     final total = uploading.fold<int>(0, (sum, t) => sum + t.totalSize);
-    final done =
-        uploading.fold<int>(0, (sum, t) => sum + t.uploadedBytes);
-    final percent = total <= 0
-        ? 0
-        : (done / total * 100).round().clamp(0, 100).toInt();
+    final done = uploading.fold<int>(0, (sum, t) => sum + t.uploadedBytes);
+    final percent =
+        total <= 0 ? 0 : (done / total * 100).round().clamp(0, 100).toInt();
     final title = uploading.isNotEmpty
-        ? '正在上传 ${uploading.length} 个任务'
-        : '${waiting.length} 个任务排队中';
+        ? tr('正在上传 {count} 个任务', args: {'count': uploading.length})
+        : tr('{count} 个任务排队中', args: {'count': waiting.length});
     final text = total > 0
         ? '${_fmtBytes(done)} / ${_fmtBytes(total)} · $percent%'
-            '${waiting.isNotEmpty ? ' · ${waiting.length} 个排队中' : ''}'
-        : '${waiting.length} 个任务等待开始';
+            '${waiting.isNotEmpty ? tr(' · {count} 个排队中', args: {
+                    'count': waiting.length
+                  }) : ''}'
+        : tr('{count} 个任务等待开始', args: {'count': waiting.length});
     if (start) {
       UploadNotifications.startService(
           title: title, text: text, percent: percent);

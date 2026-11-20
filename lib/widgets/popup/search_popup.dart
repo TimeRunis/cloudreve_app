@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import 'app_popup.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 顶部搜索弹窗（纯组件：只把提交的搜索词通过回调传出）。
 class SearchPopup extends StatefulWidget {
@@ -38,8 +39,8 @@ class _SearchPopupState extends State<SearchPopup> {
                 controller: _controller,
                 autofocus: true,
                 style: const TextStyle(fontSize: 15),
-                decoration: const InputDecoration(
-                  hintText: '搜索文件...',
+                decoration: InputDecoration(
+                  hintText: tr('搜索文件...'),
                   border: InputBorder.none,
                   isDense: true,
                 ),

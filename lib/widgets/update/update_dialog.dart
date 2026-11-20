@@ -4,6 +4,7 @@ import '../../core/format/date_time.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/app_release.dart';
 import '../file/file_icon.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 更新弹窗里用户选择的动作。
 enum UpdateDialogAction {
@@ -58,7 +59,7 @@ Future<bool> showUpdateReadyDialog(
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '新版本已下载',
+                    tr('新版本已下载'),
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
@@ -71,8 +72,9 @@ Future<bool> showUpdateReadyDialog(
             const SizedBox(height: 14),
             Text(
               version == null
-                  ? '安装包下载完成，是否立即安装？'
-                  : 'Cloudreve $version 安装包下载完成，是否立即安装？',
+                  ? tr('安装包下载完成，是否立即安装？')
+                  : tr('Cloudreve {version} 安装包下载完成，是否立即安装？',
+                      args: {'version': version}),
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
@@ -112,13 +114,13 @@ Future<bool> showUpdateReadyDialog(
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('稍后'),
+                  child: Text(tr('稍后')),
                 ),
                 const SizedBox(width: 4),
                 FilledButton(
                   style: FilledButton.styleFrom(backgroundColor: primary),
                   onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('立即安装'),
+                  child: Text(tr('立即安装')),
                 ),
               ],
             ),
@@ -164,7 +166,7 @@ class _UpdateDialog extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '发现新版本',
+                      tr('发现新版本'),
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
@@ -173,7 +175,7 @@ class _UpdateDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      release.isPrerelease ? '预发布版本' : '正式版本',
+                      release.isPrerelease ? tr('预发布版本') : tr('正式版本'),
                       style: TextStyle(fontSize: 12, color: colors.textMuted),
                     ),
                   ],
@@ -191,7 +193,7 @@ class _UpdateDialog extends StatelessWidget {
             ),
             child: Row(
               children: [
-                _VersionTag(label: '当前', value: currentVersion),
+                _VersionTag(label: tr('当前'), value: currentVersion),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Icon(
@@ -201,7 +203,7 @@ class _UpdateDialog extends StatelessWidget {
                   ),
                 ),
                 _VersionTag(
-                  label: '最新',
+                  label: tr('最新'),
                   value: release.versionLabel,
                   highlighted: true,
                 ),
@@ -217,7 +219,7 @@ class _UpdateDialog extends StatelessWidget {
           ],
           const SizedBox(height: 14),
           Text(
-            '更新内容',
+            tr('更新内容'),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -235,7 +237,7 @@ class _UpdateDialog extends StatelessWidget {
             ),
             child: SingleChildScrollView(
               child: Text(
-                release.notes.isEmpty ? '该版本没有提供更新说明。' : release.notes,
+                release.notes.isEmpty ? tr('该版本没有提供更新说明。') : release.notes,
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.6,
@@ -247,7 +249,7 @@ class _UpdateDialog extends StatelessWidget {
           if (!_canDownload) ...[
             const SizedBox(height: 8),
             Text(
-              '没有找到可直接下载的安装包，请在发布页手动下载。',
+              tr('没有找到可直接下载的安装包，请在发布页手动下载。'),
               style: TextStyle(fontSize: 12, color: colors.textMuted),
             ),
           ],
@@ -258,7 +260,7 @@ class _UpdateDialog extends StatelessWidget {
               TextButton(
                 onPressed: () =>
                     Navigator.of(context).pop(UpdateDialogAction.later),
-                child: const Text('以后再说'),
+                child: Text(tr('以后再说')),
               ),
               const SizedBox(width: 4),
               FilledButton.icon(
@@ -267,7 +269,7 @@ class _UpdateDialog extends StatelessWidget {
                   _canDownload ? Icons.download_outlined : Icons.open_in_new,
                   size: 18,
                 ),
-                label: Text(_canDownload ? '立即更新' : '打开发布页'),
+                label: Text(_canDownload ? tr('立即更新') : tr('打开发布页')),
                 onPressed: () => Navigator.of(context).pop(
                   _canDownload
                       ? UpdateDialogAction.download

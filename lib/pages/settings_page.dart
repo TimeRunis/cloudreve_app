@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/i18n/app_localizations.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/common/section_title.dart';
@@ -12,6 +13,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: context.appColors.contentBg,
       appBar: AppBar(
@@ -19,17 +21,17 @@ class SettingsPage extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          tooltip: '返回',
+          tooltip: l10n.t('返回'),
           icon: Icon(Icons.arrow_back, color: context.appColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('下载设置',
+        title: Text(l10n.t('下载设置'),
             style: TextStyle(color: context.appColors.textPrimary)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const SectionTitle.settings('多线程下载'),
+          SectionTitle.settings(l10n.t('多线程下载')),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -44,14 +46,14 @@ class SettingsPage extends ConsumerWidget {
                   value: settings.multiThreadDownload,
                   activeColor: Theme.of(context).colorScheme.primary,
                   title: Text(
-                    '多线程下载',
+                    l10n.t('多线程下载'),
                     style: TextStyle(
                       fontSize: 15,
                       color: context.appColors.textPrimary,
                     ),
                   ),
                   subtitle: Text(
-                    '使用 HTTP Range 分片并行下载，适合大文件',
+                    l10n.t('使用 HTTP Range 分片并行下载，适合大文件'),
                     style: TextStyle(
                       fontSize: 12,
                       color: context.appColors.textMuted,
@@ -70,7 +72,7 @@ class SettingsPage extends ConsumerWidget {
                       Row(
                         children: [
                           Text(
-                            '下载线程数',
+                            l10n.t('下载线程数'),
                             style: TextStyle(
                               fontSize: 15,
                               color: settings.multiThreadDownload
@@ -123,11 +125,10 @@ class SettingsPage extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(
                         settings.multiThreadDownload
-                            ? '仅对大于 1MB 的文件生效；服务器不支持时自动降级单线程'
-                            : '开启后可为每个文件分配多个线程并行下载',
+                            ? l10n.t('仅对大于 1MB 的文件生效；服务器不支持时自动降级单线程')
+                            : l10n.t('开启后可为每个文件分配多个线程并行下载'),
                         style: TextStyle(
-                            fontSize: 12,
-                            color: context.appColors.textMuted),
+                            fontSize: 12, color: context.appColors.textMuted),
                       ),
                     ],
                   ),

@@ -5,6 +5,7 @@ import '../../models/share.dart';
 import '../file/file_icon.dart';
 import '../popup/app_popup.dart';
 import '../popup/popup_item.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 分享卡片上可执行的操作。
 enum ShareCardAction { open, copyLink, delete }
@@ -111,7 +112,7 @@ class _ShareCardState extends State<ShareCard> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                '已失效',
+                                tr('已失效'),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: colors.textSecondary,
@@ -142,7 +143,7 @@ class _ShareCardState extends State<ShareCard> {
                 KeyedSubtree(
                   key: _menuKey,
                   child: IconButton(
-                    tooltip: '更多操作',
+                    tooltip: tr('更多操作'),
                     icon: Icon(Icons.more_vert,
                         size: 20, color: colors.textSecondary),
                     onPressed: _openMenu,
@@ -179,17 +180,17 @@ class _ShareMenu extends StatelessWidget {
           children: [
             PopupItem(
               icon: Icons.open_in_new,
-              label: '打开',
+              label: tr('打开'),
               onTap: () => Navigator.of(context).pop(ShareCardAction.open),
             ),
             PopupItem(
               icon: Icons.copy,
-              label: '复制链接到剪切板',
+              label: tr('复制链接到剪切板'),
               onTap: () => Navigator.of(context).pop(ShareCardAction.copyLink),
             ),
             PopupItem(
               icon: Icons.delete_outline,
-              label: '删除',
+              label: tr('删除'),
               onTap: () => Navigator.of(context).pop(ShareCardAction.delete),
             ),
           ],

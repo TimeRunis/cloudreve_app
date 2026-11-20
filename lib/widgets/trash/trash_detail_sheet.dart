@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/file_item.dart';
 import '../file/file_icon.dart';
 import 'trash_item.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 回收站条目详情（纯展示组件）。
 ///
@@ -49,16 +50,16 @@ class TrashDetailSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _row(context, '类型', item.isFolder ? '文件夹' : '文件'),
-            if (!item.isFolder) _row(context, '大小', formatSize(item.size)),
-            if (time.isNotEmpty) _row(context, '时间', time),
-            _row(context, '原位置', trashOriginalPath(item)),
+            _row(context, tr('类型'), item.isFolder ? tr('文件夹') : tr('文件')),
+            if (!item.isFolder) _row(context, tr('大小'), formatSize(item.size)),
+            if (time.isNotEmpty) _row(context, tr('时间'), time),
+            _row(context, tr('原位置'), trashOriginalPath(item)),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: onCopyPath,
                 icon: const Icon(Icons.copy, size: 18),
-                label: const Text('复制原位置'),
+                label: Text(tr('复制原位置')),
               ),
             ),
           ],

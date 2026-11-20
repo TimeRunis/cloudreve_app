@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/network/cloudreve_api.dart';
 import '../../models/file_item.dart';
 import '../../providers/api_provider.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 视频播放器页面。
 ///
@@ -121,7 +122,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
       }
       final url = await api.getFileSourceUrl(widget.file.path);
       if (url == null || url.isEmpty) {
-        throw Exception('获取视频播放链接失败');
+        throw Exception(tr('获取视频播放链接失败'));
       }
       final absolute = _absoluteUrl(url, api.site?.normalizedBaseUrl ?? '');
       final controller = VideoPlayerController.networkUrl(Uri.parse(absolute));
@@ -274,10 +275,10 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                        '倍速播放',
+                        tr('倍速播放'),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 15,
@@ -334,10 +335,10 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     child: Text(
-                      '倍速播放',
+                      tr('倍速播放'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
@@ -615,7 +616,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
           child: Row(
             children: [
               IconButton(
-                tooltip: '返回',
+                tooltip: tr('返回'),
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -718,15 +719,15 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
             const Icon(Icons.error_outline_rounded,
                 color: Colors.white70, size: 48),
             const SizedBox(height: 12),
-            const Text(
-              '视频加载失败',
+            Text(
+              tr('视频加载失败'),
               style: TextStyle(color: Colors.white70, fontSize: 15),
             ),
             const SizedBox(height: 6),
             Text(
               detail.isNotEmpty && detail.length < 100
                   ? detail
-                  : '当前视频编码格式可能不受支持，或文件已损坏。',
+                  : tr('当前视频编码格式可能不受支持，或文件已损坏。'),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -736,7 +737,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
             TextButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-              label: const Text('重试', style: TextStyle(color: Colors.white)),
+              label: Text(tr('重试'), style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -761,13 +762,14 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
       child = _hudBox(
         icon: const Icon(Icons.brightness_6_rounded,
             color: Colors.white, size: 28),
-        label: '亮度 ${(_brightness * 100).round()}%',
+        label:
+            tr('亮度 {percent}%', args: {'percent': (_brightness * 100).round()}),
       );
     } else if (_showVolumeHud) {
       child = _hudBox(
         icon:
             const Icon(Icons.volume_up_rounded, color: Colors.white, size: 28),
-        label: '音量 ${(_volume * 100).round()}%',
+        label: tr('音量 {percent}%', args: {'percent': (_volume * 100).round()}),
       );
     } else {
       child = const SizedBox.shrink();
@@ -803,7 +805,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
           opacity: show ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 200),
           child: IconButton(
-            tooltip: '播放',
+            tooltip: tr('播放'),
             iconSize: 72,
             icon: const Icon(
               Icons.play_circle_fill_rounded,
@@ -831,7 +833,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
   Widget _buildLockedControls() {
     return Center(
       child: IconButton(
-        tooltip: '解锁',
+        tooltip: tr('解锁'),
         iconSize: 40,
         icon: const Icon(Icons.lock_open_rounded, color: Colors.white),
         onPressed: _toggleLock,
@@ -874,7 +876,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
       child: Row(
         children: [
           IconButton(
-            tooltip: '退出全屏',
+            tooltip: tr('退出全屏'),
             icon:
                 const Icon(Icons.fullscreen_exit_rounded, color: Colors.white),
             onPressed: _toggleFullscreen,
@@ -888,7 +890,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
             ),
           ),
           IconButton(
-            tooltip: _locked ? '解锁' : '锁定画面',
+            tooltip: _locked ? tr('解锁') : tr('锁定画面'),
             icon: Icon(
               _locked ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
               color: Colors.white,
@@ -926,7 +928,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
           Row(
             children: [
               IconButton(
-                tooltip: _isPlaying ? '暂停' : '播放',
+                tooltip: _isPlaying ? tr('暂停') : tr('播放'),
                 icon: Icon(
                   _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                   color: Colors.white,
@@ -943,7 +945,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
                 ),
                 onPressed: _showSpeedMenu,
                 child: Text(
-                  _playbackSpeed == 1.0 ? '倍速' : '${_playbackSpeed}x',
+                  _playbackSpeed == 1.0 ? tr('倍速') : '${_playbackSpeed}x',
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
@@ -953,7 +955,7 @@ class _VideoPlayerViewerState extends ConsumerState<VideoPlayerViewer> {
               ),
               const Spacer(),
               IconButton(
-                tooltip: _fullscreen ? '退出全屏' : '全屏',
+                tooltip: _fullscreen ? tr('退出全屏') : tr('全屏'),
                 icon: Icon(
                   _fullscreen
                       ? Icons.fullscreen_exit_rounded

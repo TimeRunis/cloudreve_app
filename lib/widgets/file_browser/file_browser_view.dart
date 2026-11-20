@@ -6,6 +6,7 @@ import '../common/section_title.dart';
 import '../file/file_card.dart';
 import '../file/file_list_tile.dart';
 import '../file/folder_card.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 与数据源无关的文件浏览视图。
 ///
@@ -64,9 +65,9 @@ class FileBrowserView extends StatelessWidget {
     if (files.isEmpty) {
       return empty ??
           ListView(
-            children: const [
+            children: [
               SizedBox(height: 80),
-              Center(child: Text('此目录为空')),
+              Center(child: Text(tr('此目录为空'))),
             ],
           );
     }
@@ -114,7 +115,7 @@ class FileBrowserView extends StatelessWidget {
           children: [
             if (folders.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const SectionTitle.content('文件夹'),
+              SectionTitle.content(tr('文件夹')),
               const SizedBox(height: 12),
               GridView.builder(
                 shrinkWrap: true,
@@ -140,7 +141,7 @@ class FileBrowserView extends StatelessWidget {
             ],
             if (fileItems.isNotEmpty) ...[
               const SizedBox(height: 24),
-              const SectionTitle.content('文件'),
+              SectionTitle.content(tr('文件')),
               const SizedBox(height: 12),
               GridView.builder(
                 shrinkWrap: true,

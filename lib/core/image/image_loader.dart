@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../models/file_item.dart';
 import '../network/cloudreve_api.dart';
+import '../i18n/app_localizations.dart';
 
 /// 一次图片下载：对外暴露进度与结果，可被多个页面共享。
 class ImageTask {
@@ -115,7 +116,7 @@ class ImageLoader {
       final bytes = await job.fetch((received, total) {
         if (total > 0) task.progress.value = received / total;
       });
-      if (bytes.isEmpty) throw StateError('图片内容为空');
+      if (bytes.isEmpty) throw StateError(tr('图片内容为空'));
       _store(task.key, bytes);
       task.bytes = bytes;
       task._completer.complete(bytes);
@@ -157,7 +158,7 @@ ImageFetch cloudreveImageFetch(CloudreveApi api, String path) {
   return (onProgress) async {
     final url = await api.getFileSourceUrl(path);
     if (url == null || url.isEmpty) {
-      throw StateError('获取图片地址失败');
+      throw StateError(tr('获取图片地址失败'));
     }
     final response = await api.dio.get<List<int>>(
       url,
@@ -165,7 +166,7 @@ ImageFetch cloudreveImageFetch(CloudreveApi api, String path) {
       onReceiveProgress: onProgress,
     );
     final data = response.data;
-    if (data == null || data.isEmpty) throw StateError('图片内容为空');
+    if (data == null || data.isEmpty) throw StateError(tr('图片内容为空'));
     return Uint8List.fromList(data);
   };
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_popup.dart';
 
@@ -51,7 +52,7 @@ class SortPopup extends StatelessWidget {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(opt.label,
+                          child: Text(tr(opt.label),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(

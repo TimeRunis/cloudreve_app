@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../popup/app_popup.dart';
 import '../popup/popup_item.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 下载页「更多」菜单动作。
 enum DownloadsMenuAction {
@@ -29,21 +30,21 @@ class DownloadsMenuPopup extends StatelessWidget {
           children: [
             PopupItem(
               icon: Icons.play_arrow_rounded,
-              label: '全部开始',
+              label: tr('全部开始'),
               onTap: () => Navigator.of(context).pop(
                 DownloadsMenuAction.resumeAll,
               ),
             ),
             PopupItem(
               icon: Icons.pause_rounded,
-              label: '全部暂停',
+              label: tr('全部暂停'),
               onTap: () => Navigator.of(context).pop(
                 DownloadsMenuAction.pauseAll,
               ),
             ),
             PopupItem(
               icon: Icons.delete_sweep_outlined,
-              label: '清空已完成',
+              label: tr('清空已完成'),
               onTap: () => Navigator.of(context).pop(
                 DownloadsMenuAction.clearCompleted,
               ),
@@ -51,7 +52,7 @@ class DownloadsMenuPopup extends StatelessWidget {
             Divider(height: 1, color: context.appColors.border),
             PopupItem(
               icon: Icons.settings_outlined,
-              label: '下载设置',
+              label: tr('下载设置'),
               onTap: () => Navigator.of(context).pop(
                 DownloadsMenuAction.downloadSettings,
               ),

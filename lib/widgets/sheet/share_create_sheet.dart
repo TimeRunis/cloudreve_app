@@ -9,6 +9,7 @@ import '../../models/file_item.dart';
 import '../../providers/api_provider.dart';
 import '../file/file_icon.dart';
 import '../file/view_panel.dart';
+import '../../core/i18n/app_localizations.dart';
 
 enum _PasswordMode { none, random, custom }
 
@@ -101,14 +102,14 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
       if (pwd.isEmpty) {
         setState(() {
           _submitting = false;
-          _error = '请输入自定义密码';
+          _error = tr('请输入自定义密码');
         });
         return;
       }
       if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(pwd)) {
         setState(() {
           _submitting = false;
-          _error = '密码只能包含字母和数字';
+          _error = tr('密码只能包含字母和数字');
         });
         return;
       }
@@ -132,7 +133,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
       if (url.isEmpty) {
         setState(() {
           _submitting = false;
-          _error = '创建分享失败，服务器未返回链接';
+          _error = tr('创建分享失败，服务器未返回链接');
         });
         return;
       }
@@ -146,7 +147,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = '创建分享失败，请重试';
+        _error = tr('创建分享失败，请重试');
       });
     }
   }
@@ -171,7 +172,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
     await Clipboard.setData(ClipboardData(text: url));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('链接已复制')),
+      SnackBar(content: Text(tr('链接已复制'))),
     );
   }
 
@@ -212,7 +213,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
         ),
         const SizedBox(height: 16),
         Text(
-          '创建分享',
+          tr('创建分享'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
@@ -223,17 +224,17 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
         const SizedBox(height: 16),
         _buildFileInfo(context),
         const SizedBox(height: 16),
-        Text('访问密码',
+        Text(tr('访问密码'),
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: colors.textPrimary)),
         const SizedBox(height: 8),
         SegmentedGroup<_PasswordMode>(
-          options: const [
-            (Icons.lock_open_outlined, '无密码', _PasswordMode.none),
-            (Icons.shuffle, '随机密码', _PasswordMode.random),
-            (Icons.password, '自定义密码', _PasswordMode.custom),
+          options: [
+            (Icons.lock_open_outlined, tr('无密码'), _PasswordMode.none),
+            (Icons.shuffle, tr('随机密码'), _PasswordMode.random),
+            (Icons.password, tr('自定义密码'), _PasswordMode.custom),
           ],
           value: _passwordMode,
           onChanged: _selectPasswordMode,
@@ -245,11 +246,11 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             readOnly: true,
             enabled: !_submitting,
             decoration: InputDecoration(
-              hintText: '随机密码',
+              hintText: tr('随机密码'),
               prefixIcon:
                   Icon(Icons.shuffle, size: 18, color: colors.textMuted),
               suffixIcon: IconButton(
-                tooltip: '重新生成',
+                tooltip: tr('重新生成'),
                 icon: Icon(Icons.refresh, size: 18, color: colors.textMuted),
                 onPressed: _regenerateRandom,
               ),
@@ -271,7 +272,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             obscureText: _obscureCustom,
             enabled: !_submitting,
             decoration: InputDecoration(
-              hintText: '请输入自定义密码',
+              hintText: tr('请输入自定义密码'),
               prefixIcon:
                   Icon(Icons.password, size: 18, color: colors.textMuted),
               suffixIcon: IconButton(
@@ -305,10 +306,10 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
         SwitchListTile(
           value: _shareView,
           onChanged: (v) => setState(() => _shareView = v),
-          title: Text('允许查看分享设置',
+          title: Text(tr('允许查看分享设置'),
               style: TextStyle(fontSize: 14, color: colors.textPrimary)),
           subtitle: Text(
-            '勾选后，其他用户访问此共享文件夹时可以看到你保存在服务器的视图设置 (布局、排序等)。',
+            tr('勾选后，其他用户访问此共享文件夹时可以看到你保存在服务器的视图设置 (布局、排序等)。'),
             style: TextStyle(fontSize: 12, color: colors.textMuted),
           ),
           contentPadding: EdgeInsets.zero,
@@ -317,10 +318,10 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
         SwitchListTile(
           value: _showReadme,
           onChanged: (v) => setState(() => _showReadme = v),
-          title: Text('展示 README 文件',
+          title: Text(tr('展示 README 文件'),
               style: TextStyle(fontSize: 14, color: colors.textPrimary)),
           subtitle: Text(
-            '勾选后，会自动为访问者展示目录下的 README.md (区分大小写) 文件。',
+            tr('勾选后，会自动为访问者展示目录下的 README.md (区分大小写) 文件。'),
             style: TextStyle(fontSize: 12, color: colors.textMuted),
           ),
           contentPadding: EdgeInsets.zero,
@@ -329,10 +330,10 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
         SwitchListTile(
           value: _expireEnabled,
           onChanged: (v) => setState(() => _expireEnabled = v),
-          title: Text('超时自动过期',
+          title: Text(tr('超时自动过期'),
               style: TextStyle(fontSize: 14, color: colors.textPrimary)),
           subtitle: Text(
-            '开启后，分享链接将在指定时间后自动失效',
+            tr('开启后，分享链接将在指定时间后自动失效'),
             style: TextStyle(fontSize: 12, color: colors.textMuted),
           ),
           contentPadding: EdgeInsets.zero,
@@ -343,7 +344,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
           DropdownButtonFormField<int>(
             value: _expireSeconds,
             decoration: InputDecoration(
-              labelText: '过期时间',
+              labelText: tr('过期时间'),
               filled: true,
               fillColor: colors.surfaceMuted,
               contentPadding:
@@ -354,7 +355,8 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
               ),
             ),
             items: _expiryOptions
-                .map((e) => DropdownMenuItem(value: e.$2, child: Text(e.$1)))
+                .map(
+                    (e) => DropdownMenuItem(value: e.$2, child: Text(tr(e.$1))))
                 .toList(),
             onChanged: (v) {
               if (v != null) setState(() => _expireSeconds = v);
@@ -375,7 +377,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             padding: const EdgeInsets.symmetric(vertical: 12),
           ),
           onPressed: _submitting ? null : _submit,
-          child: Text(_submitting ? '创建中…' : '创建分享'),
+          child: Text(_submitting ? tr('创建中…') : tr('创建分享')),
         ),
       ],
     );
@@ -392,7 +394,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             size: 48, color: Theme.of(context).colorScheme.primary),
         const SizedBox(height: 12),
         Text(
-          '分享创建成功',
+          tr('分享创建成功'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 16,
@@ -417,7 +419,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
                 ),
               ),
               IconButton(
-                tooltip: '复制链接',
+                tooltip: tr('复制链接'),
                 icon: Icon(Icons.copy, size: 20, color: colors.textSecondary),
                 onPressed: _copyUrl,
               ),
@@ -429,10 +431,10 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
           CheckboxListTile(
             value: _includePassword,
             onChanged: (v) => setState(() => _includePassword = v ?? true),
-            title: Text('在链接中包含密码',
+            title: Text(tr('在链接中包含密码'),
                 style: TextStyle(fontSize: 14, color: colors.textPrimary)),
             subtitle: Text(
-              '取消勾选后，访问者需要另行输入密码',
+              tr('取消勾选后，访问者需要另行输入密码'),
               style: TextStyle(fontSize: 12, color: colors.textMuted),
             ),
             contentPadding: EdgeInsets.zero,
@@ -446,7 +448,7 @@ class _ShareCreateSheetState extends ConsumerState<ShareCreateSheet> {
             padding: const EdgeInsets.symmetric(vertical: 12),
           ),
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('完成'),
+          child: Text(tr('完成')),
         ),
       ],
     );

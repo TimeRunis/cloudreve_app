@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/download_task.dart';
 import '../file/file_icon.dart';
 import 'download_style.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 下载页顶部汇总卡：下载中/排队中/总速度/已完成 + 总进度。
 ///
@@ -47,13 +48,13 @@ class DownloadSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _stat(context, '下载中', '$downloading'),
+              _stat(context, tr('下载中'), '$downloading'),
               _divider(context),
-              _stat(context, '排队中', '$queued'),
+              _stat(context, tr('排队中'), '$queued'),
               _divider(context),
-              _stat(context, '总速度', formatSpeed(totalSpeed)),
+              _stat(context, tr('总速度'), formatSpeed(totalSpeed)),
               _divider(context),
-              _stat(context, '已完成', '$completed'),
+              _stat(context, tr('已完成'), '$completed'),
             ],
           ),
           if (activeTasks.isNotEmpty) ...[
@@ -71,7 +72,9 @@ class DownloadSummaryCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '总进度 ${(overall * 100).toStringAsFixed(1)}%',
+                  tr('总进度 {percent}%', args: {
+                    'percent': (overall * 100).toStringAsFixed(1),
+                  }),
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,

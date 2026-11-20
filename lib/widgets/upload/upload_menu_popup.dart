@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../popup/app_popup.dart';
 import '../popup/popup_item.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 上传队列「更多」菜单动作。
 enum UploadMenuAction { overwrite, hideCompleted, retryAll, clearCompleted }
@@ -34,25 +35,25 @@ class UploadMenuPopup extends StatelessWidget {
           children: [
             PopupItem(
               icon: Icons.copy_all_outlined,
-              label: '覆盖已有文件',
+              label: tr('覆盖已有文件'),
               selected: overwrite,
               onTap: () => onAction(UploadMenuAction.overwrite),
             ),
             PopupItem(
               icon: Icons.visibility_off_outlined,
-              label: '隐藏已完成任务',
+              label: tr('隐藏已完成任务'),
               selected: hideCompleted,
               onTap: () => onAction(UploadMenuAction.hideCompleted),
             ),
             Divider(height: 1, color: context.appColors.border),
             PopupItem(
               icon: Icons.refresh,
-              label: '重试所有失败任务',
+              label: tr('重试所有失败任务'),
               onTap: () => onAction(UploadMenuAction.retryAll),
             ),
             PopupItem(
               icon: Icons.delete_sweep_outlined,
-              label: '清除已完成任务',
+              label: tr('清除已完成任务'),
               onTap: () => onAction(UploadMenuAction.clearCompleted),
             ),
           ],

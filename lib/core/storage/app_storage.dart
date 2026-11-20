@@ -16,6 +16,7 @@ class AppStorage {
   static const _kSites = 'sites';
   static const _kCurrentSiteId = 'current_site_id';
   static const _kThemeMode = 'theme_mode';
+  static const _kLanguage = 'language';
   static const _kMultiThreadDownload = 'multi_thread_download';
   static const _kDownloadThreadCount = 'download_thread_count';
   static const _kDownloadTasks = 'download_tasks';
@@ -35,6 +36,13 @@ class AppStorage {
   String getThemeMode() => _prefs.getString(_kThemeMode) ?? 'system';
 
   Future<void> setThemeMode(String mode) => _prefs.setString(_kThemeMode, mode);
+
+  // ---------- 界面语言 ----------
+  /// 界面语言：system / zh / en，默认跟随系统。
+  String getLanguage() => _prefs.getString(_kLanguage) ?? 'system';
+
+  Future<void> setLanguage(String language) =>
+      _prefs.setString(_kLanguage, language);
 
   // ---------- 站点列表 ----------
   List<Site> getSites() {

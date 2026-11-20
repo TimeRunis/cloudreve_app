@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 加密分享的密码输入视图。
 ///
@@ -66,7 +67,7 @@ class _SharePasswordViewState extends State<SharePasswordView> {
               ),
               const SizedBox(height: 16),
               Text(
-                '该分享已加密',
+                tr('该分享已加密'),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -86,7 +87,7 @@ class _SharePasswordViewState extends State<SharePasswordView> {
                 obscureText: _obscure,
                 enabled: !widget.loading,
                 decoration: InputDecoration(
-                  hintText: '请输入访问密码',
+                  hintText: tr('请输入访问密码'),
                   prefixIcon:
                       Icon(Icons.password, size: 18, color: colors.textMuted),
                   suffixIcon: IconButton(
@@ -135,7 +136,7 @@ class _SharePasswordViewState extends State<SharePasswordView> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onPressed: widget.loading ? null : _submit,
-                  child: Text(widget.loading ? '校验中…' : '进入分享'),
+                  child: Text(widget.loading ? tr('校验中…') : tr('进入分享')),
                 ),
               ),
             ],

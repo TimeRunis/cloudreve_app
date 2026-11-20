@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 单行文本：超出可用宽度时用省略号截断，而不是缩放字号。
 ///
@@ -72,7 +73,7 @@ class _DetailIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: '查看详情',
+      message: tr('查看详情'),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _showDetail(context),
@@ -112,20 +113,20 @@ class _DetailIcon extends StatelessWidget {
               foregroundColor: Theme.of(dialogContext).colorScheme.primary,
             ),
             icon: const Icon(Icons.copy_outlined, size: 18),
-            label: const Text('复制'),
+            label: Text(tr('复制')),
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: message));
               if (!dialogContext.mounted) return;
               Navigator.of(dialogContext).pop();
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('错误信息已复制')),
+                SnackBar(content: Text(tr('错误信息已复制'))),
               );
             },
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('关闭'),
+            child: Text(tr('关闭')),
           ),
         ],
       ),

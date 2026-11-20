@@ -9,6 +9,7 @@ import '../file/file_icon.dart';
 import 'download_detail_sheet.dart';
 import 'download_style.dart';
 import 'download_task_thumbnail.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 删除动作的类型：是否同时删除已下载文件。
 typedef DownloadTaskRemover = void Function({required bool deleteFile});
@@ -81,7 +82,7 @@ class DownloadTaskCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            task.statusLabel,
+                            tr(task.statusLabel),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -122,7 +123,7 @@ class DownloadTaskCard extends StatelessWidget {
                         task.error!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        '失败原因：${task.error}',
+                        tr('失败原因：{error}', args: {'error': task.error ?? ''}),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -185,14 +186,14 @@ class DownloadTaskCard extends StatelessWidget {
     switch (task.status) {
       case DownloadStatus.downloading:
         return [
-          button('暂停', onPause),
+          button(tr('暂停'), onPause),
           button(
-              '取消',
+              tr('取消'),
               () => _confirmRemove(
                     context,
-                    title: '取消任务',
-                    message: '将停止下载并删除已下载的文件与临时文件，此操作不可恢复。',
-                    actionLabel: '确定取消',
+                    title: tr('取消任务'),
+                    message: tr('将停止下载并删除已下载的文件与临时文件，此操作不可恢复。'),
+                    actionLabel: tr('确定取消'),
                     deleteFile: true,
                   ),
               color: context.appColors.textSecondary),
@@ -200,54 +201,54 @@ class DownloadTaskCard extends StatelessWidget {
       case DownloadStatus.waiting:
         return [
           button(
-              '取消',
+              tr('取消'),
               () => _confirmRemove(
                     context,
-                    title: '取消任务',
-                    message: '将删除排队任务及其临时文件，此操作不可恢复。',
-                    actionLabel: '确定取消',
+                    title: tr('取消任务'),
+                    message: tr('将删除排队任务及其临时文件，此操作不可恢复。'),
+                    actionLabel: tr('确定取消'),
                     deleteFile: true,
                   ),
               color: context.appColors.textSecondary),
         ];
       case DownloadStatus.paused:
         return [
-          button('继续', onResume),
+          button(tr('继续'), onResume),
           button(
-              '删除',
+              tr('删除'),
               () => _confirmRemove(
                     context,
-                    title: '删除任务和文件',
-                    message: '将删除任务、已下载的文件与临时文件，此操作不可恢复。',
-                    actionLabel: '确定删除',
+                    title: tr('删除任务和文件'),
+                    message: tr('将删除任务、已下载的文件与临时文件，此操作不可恢复。'),
+                    actionLabel: tr('确定删除'),
                     deleteFile: true,
                   ),
               color: context.appColors.textSecondary),
         ];
       case DownloadStatus.failed:
         return [
-          button('重试', onResume),
+          button(tr('重试'), onResume),
           button(
-              '删除',
+              tr('删除'),
               () => _confirmRemove(
                     context,
-                    title: '删除任务和文件',
-                    message: '将删除任务、已下载的文件与临时文件，此操作不可恢复。',
-                    actionLabel: '确定删除',
+                    title: tr('删除任务和文件'),
+                    message: tr('将删除任务、已下载的文件与临时文件，此操作不可恢复。'),
+                    actionLabel: tr('确定删除'),
                     deleteFile: true,
                   ),
               color: context.appColors.textSecondary),
         ];
       case DownloadStatus.completed:
         return [
-          button('打开', () => _openFile(context)),
+          button(tr('打开'), () => _openFile(context)),
           button(
-              '删除记录',
+              tr('删除记录'),
               () => _confirmRemove(
                     context,
-                    title: '删除记录',
-                    message: '仅删除下载记录，已下载的文件会保留。',
-                    actionLabel: '确定删除',
+                    title: tr('删除记录'),
+                    message: tr('仅删除下载记录，已下载的文件会保留。'),
+                    actionLabel: tr('确定删除'),
                     deleteFile: false,
                   ),
               color: context.appColors.textSecondary),
@@ -270,7 +271,7 @@ class DownloadTaskCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -298,18 +299,18 @@ class DownloadTaskCard extends StatelessWidget {
       case DownloadDetailAction.deleteRecord:
         await _confirmRemove(
           context,
-          title: '删除记录',
-          message: '仅删除下载记录，已下载的文件会保留。',
-          actionLabel: '确定删除',
+          title: tr('删除记录'),
+          message: tr('仅删除下载记录，已下载的文件会保留。'),
+          actionLabel: tr('确定删除'),
           deleteFile: false,
         );
         break;
       case DownloadDetailAction.deleteTaskAndFile:
         await _confirmRemove(
           context,
-          title: '删除任务和文件',
-          message: '将删除任务、已下载的文件与临时文件，此操作不可恢复。',
-          actionLabel: '确定删除',
+          title: tr('删除任务和文件'),
+          message: tr('将删除任务、已下载的文件与临时文件，此操作不可恢复。'),
+          actionLabel: tr('确定删除'),
           deleteFile: true,
         );
         break;
@@ -318,18 +319,18 @@ class DownloadTaskCard extends StatelessWidget {
 
   Future<void> _openFile(BuildContext context) async {
     if (!File(task.savePath).existsSync()) {
-      _toast(context, '文件不存在，可能已被移动或删除');
+      _toast(context, tr('文件不存在，可能已被移动或删除'));
       return;
     }
     try {
       final result = await OpenFilex.open(task.savePath);
       if (!context.mounted) return;
       if (result.type != ResultType.done) {
-        _toast(context, '无法打开文件');
+        _toast(context, tr('无法打开文件'));
       }
     } catch (e) {
       if (!context.mounted) return;
-      _toast(context, '无法打开文件');
+      _toast(context, tr('无法打开文件'));
     }
   }
 

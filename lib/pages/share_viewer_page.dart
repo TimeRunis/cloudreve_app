@@ -25,6 +25,7 @@ import '../widgets/sheet/file_info_sheet.dart';
 import '../widgets/viewer/image_viewer.dart';
 import '../widgets/viewer/video_player_viewer.dart';
 import 'downloads_page.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 分享访问页：支持公开分享和带密码分享，可浏览分享目录/打开文件。
 class ShareViewerPage extends ConsumerStatefulWidget {
@@ -124,7 +125,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           _checking = false;
         });
         if (info.expired) {
-          _fatalError = '该分享链接已失效';
+          _fatalError = tr('该分享链接已失效');
           setState(() {});
         } else {
           await _loadFiles();
@@ -141,7 +142,8 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       if (!mounted) return;
       setState(() {
         _checking = false;
-        _fatalError = e is ApiException ? '分享失效或链接不存在' : '无法打开分享链接，请检查链接或网络';
+        _fatalError =
+            e is ApiException ? tr('分享失效或链接不存在') : tr('无法打开分享链接，请检查链接或网络');
       });
     }
   }
@@ -162,7 +164,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           _info = info;
           _locked = false;
           _checking = false;
-          _fatalError = '该分享链接已失效';
+          _fatalError = tr('该分享链接已失效');
         });
       } else if (info.unlocked) {
         setState(() {
@@ -178,7 +180,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           _info = info;
           _locked = true;
           _checking = false;
-          _loadError = '密码错误，请重试';
+          _loadError = tr('密码错误，请重试');
         });
       }
     } catch (e) {
@@ -186,7 +188,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       if (!mounted) return;
       setState(() {
         _checking = false;
-        _loadError = '密码校验失败，请重试';
+        _loadError = tr('密码校验失败，请重试');
       });
     }
   }
@@ -218,7 +220,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       if (!mounted || seq != _fileLoadSeq) return;
       setState(() {
         _loadingFiles = false;
-        _loadError = '加载文件列表失败';
+        _loadError = tr('加载文件列表失败');
       });
     }
   }
@@ -324,11 +326,11 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
         _files.where((f) => _browse.selectedPaths.contains(f.path)).toList();
     final files = selected.where((f) => !f.isFolder).toList();
     if (files.isEmpty) {
-      _toast('文件夹打包下载暂不支持');
+      _toast(tr('文件夹打包下载暂不支持'));
       return;
     }
     if (files.length != selected.length) {
-      _toast('文件夹打包下载暂不支持，将只下载选中的文件');
+      _toast(tr('文件夹打包下载暂不支持，将只下载选中的文件'));
     }
     try {
       final count = await ref
@@ -338,13 +340,14 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       if (!mounted) return;
       if (count > 0) {
         _clearSelection();
-        _toastWithDownloadsAction('已加入下载队列：$count 个任务');
+        _toastWithDownloadsAction(
+            tr('已加入下载队列：{count} 个任务', args: {'count': count}));
       } else {
-        _toast('获取下载链接失败');
+        _toast(tr('获取下载链接失败'));
       }
     } catch (e) {
       print('[ShareViewerPage] 加入下载队列失败: $e');
-      if (mounted) _toast('加入下载队列失败');
+      if (mounted) _toast(tr('加入下载队列失败'));
     }
   }
 
@@ -366,7 +369,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        action: SnackBarAction(label: '查看', onPressed: _openDownloads),
+        action: SnackBarAction(label: tr('查看'), onPressed: _openDownloads),
       ),
     );
   }
@@ -425,10 +428,10 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           elevation: 0,
           leading: IconButton(
             tooltip: selecting
-                ? '取消选择'
+                ? tr('取消选择')
                 : atRoot
-                    ? '关闭'
-                    : '返回上一级',
+                    ? tr('关闭')
+                    : tr('返回上一级'),
             icon: Icon(
               selecting || atRoot ? Icons.close : Icons.arrow_back,
               size: selecting || atRoot ? 18 : 20,
@@ -437,7 +440,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
             onPressed: _handleBack,
           ),
           title: Text(
-            _info?.name ?? '分享',
+            _info?.name ?? tr('分享'),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -456,7 +459,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
               )
             else ...[
               IconButton(
-                tooltip: '下载任务',
+                tooltip: tr('下载任务'),
                 icon: Icon(Icons.download_outlined,
                     size: 20, color: colors.textSecondary),
                 onPressed: _openDownloads,
@@ -484,7 +487,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           Expanded(
             child: Breadcrumb(
               segments: _browse.pathSegments,
-              rootLabel: '分享根目录',
+              rootLabel: tr('分享根目录'),
               rootIcon: Icons.folder_shared_outlined,
               onNavigate: _navigateToDepth,
             ),
@@ -495,18 +498,18 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
               ToolbarActionItem(
                 key: _viewButtonKey,
                 icon: Icons.grid_view_outlined,
-                tooltip: '切换视图',
+                tooltip: tr('切换视图'),
                 onTap: _openViewPanel,
               ),
               ToolbarActionItem(
                 key: _sortButtonKey,
                 icon: Icons.swap_vert,
-                tooltip: '排序',
+                tooltip: tr('排序'),
                 onTap: _openSortMenu,
               ),
               ToolbarActionItem(
                 icon: Icons.refresh,
-                tooltip: '刷新',
+                tooltip: tr('刷新'),
                 onTap: _refresh,
               ),
             ],
@@ -529,7 +532,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
     }
     if (_locked) {
       return SharePasswordView(
-        shareName: _info?.name ?? '分享内容',
+        shareName: _info?.name ?? tr('分享内容'),
         initialPassword: _password ?? '',
         errorText: _loadError,
         loading: _checking,
@@ -553,7 +556,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           children: [
             Icon(Icons.folder_open_outlined, size: 48, color: colors.textMuted),
             const SizedBox(height: 8),
-            Text('此分享没有可显示的内容',
+            Text(tr('此分享没有可显示的内容'),
                 style: TextStyle(fontSize: 14, color: colors.textSecondary)),
           ],
         ),

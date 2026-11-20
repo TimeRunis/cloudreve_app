@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/site.dart';
 import '../providers/sites_provider.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 新增 / 编辑站点。
 class SiteEditPage extends ConsumerStatefulWidget {
@@ -49,17 +50,20 @@ class _SiteEditPageState extends ConsumerState<SiteEditPage> {
     final name = _nameCtrl.text.trim();
     final url = _normalizeUrl(_urlCtrl.text);
     if (name.isEmpty) {
-      _toast('请输入站点名称');
+      _toast(tr('请输入站点名称'));
       return;
     }
-    if (url.isEmpty || !(url.startsWith('http://') || url.startsWith('https://'))) {
-      _toast('请输入合法的站点地址（以 http(s):// 开头）');
+    if (url.isEmpty ||
+        !(url.startsWith('http://') || url.startsWith('https://'))) {
+      _toast(tr('请输入合法的站点地址（以 http(s):// 开头）'));
       return;
     }
 
     setState(() => _saving = true);
     final site = Site(
-      id: _isEdit ? widget.site!.id : DateTime.now().microsecondsSinceEpoch.toString(),
+      id: _isEdit
+          ? widget.site!.id
+          : DateTime.now().microsecondsSinceEpoch.toString(),
       name: name,
       baseUrl: url,
       skipTlsVerify: _skipTls,
@@ -79,7 +83,7 @@ class _SiteEditPageState extends ConsumerState<SiteEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isEdit ? '编辑站点' : '添加站点')),
+      appBar: AppBar(title: Text(_isEdit ? tr('编辑站点') : tr('添加站点'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -87,9 +91,9 @@ class _SiteEditPageState extends ConsumerState<SiteEditPage> {
           children: [
             TextField(
               controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: '站点名称',
-                hintText: '例如：我的网盘',
+              decoration: InputDecoration(
+                labelText: tr('站点名称'),
+                hintText: tr('例如：我的网盘'),
                 prefixIcon: Icon(Icons.label_outline),
                 border: OutlineInputBorder(),
               ),
@@ -98,8 +102,8 @@ class _SiteEditPageState extends ConsumerState<SiteEditPage> {
             TextField(
               controller: _urlCtrl,
               keyboardType: TextInputType.url,
-              decoration: const InputDecoration(
-                labelText: '站点地址',
+              decoration: InputDecoration(
+                labelText: tr('站点地址'),
                 hintText: 'https://your-cloudreve-site.com',
                 prefixIcon: Icon(Icons.link),
                 border: OutlineInputBorder(),
@@ -109,8 +113,8 @@ class _SiteEditPageState extends ConsumerState<SiteEditPage> {
             SwitchListTile(
               value: _skipTls,
               onChanged: (v) => setState(() => _skipTls = v),
-              title: const Text('跳过 HTTPS 证书校验'),
-              subtitle: const Text('站点使用自签名证书或证书链不完整时开启'),
+              title: Text(tr('跳过 HTTPS 证书校验')),
+              subtitle: Text(tr('站点使用自签名证书或证书链不完整时开启')),
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 24),
@@ -125,7 +129,7 @@ class _SiteEditPageState extends ConsumerState<SiteEditPage> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('保存'),
+                  : Text(tr('保存')),
             ),
           ],
         ),

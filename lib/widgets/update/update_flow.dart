@@ -9,6 +9,7 @@ import '../../models/app_release.dart';
 import '../../models/download_task.dart';
 import '../../providers/update_provider.dart';
 import 'update_dialog.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 「检查更新 → 弹窗 → 加入下载队列 → 提示安装」的完整交互流程。
 ///
@@ -39,8 +40,8 @@ class UpdateFlow {
     if (release == null) {
       if (manual) {
         final message = state.status == UpdateCheckStatus.failed
-            ? '检查更新失败：${state.error ?? '网络异常'}'
-            : '当前已是最新版本';
+            ? tr('检查更新失败：{error}', args: {'error': state.error ?? tr('网络异常')})
+            : tr('当前已是最新版本');
         _toast(context, message);
       }
       return;
@@ -90,7 +91,7 @@ class UpdateFlow {
     if (!install || !context.mounted) return;
     final opened = await _openInstaller(task.savePath);
     if (!opened && context.mounted) {
-      _toast(context, '无法启动安装器，请在下载页打开安装包');
+      _toast(context, tr('无法启动安装器，请在下载页打开安装包'));
     }
   }
 
@@ -105,7 +106,7 @@ class UpdateFlow {
     final task = await ref.read(updateProvider.notifier).download(release);
     if (!context.mounted) return;
     if (task == null) {
-      _toast(context, '无法开始下载，请在发布页手动下载');
+      _toast(context, tr('无法开始下载，请在发布页手动下载'));
       await _openReleasePage(context, release);
       return;
     }
@@ -113,7 +114,7 @@ class UpdateFlow {
       await promptInstall(context, task, version: release.versionLabel);
       return;
     }
-    _toast(context, '已加入下载队列，可在下载页查看进度');
+    _toast(context, tr('已加入下载队列，可在下载页查看进度'));
     onOpenDownloads?.call();
   }
 
@@ -143,7 +144,7 @@ class UpdateFlow {
     if (opened || !context.mounted) return;
     await Clipboard.setData(ClipboardData(text: release.pageUrl));
     if (!context.mounted) return;
-    _toast(context, '发布页地址已复制到剪贴板');
+    _toast(context, tr('发布页地址已复制到剪贴板'));
   }
 
   /// 等当前页面重新回到栈顶（最多约 8 秒），避免和其它弹窗叠在一起。

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_popup.dart';
 import 'popup_item.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 新建/上传菜单动作。
 enum AddMenuAction {
@@ -30,7 +31,7 @@ class AddMenuPopup extends StatelessWidget {
           children: [
             PopupItem(
                 icon: Icons.upload_file_outlined,
-                label: '上传文件',
+                label: tr('上传文件'),
                 onTap: () => onAction(AddMenuAction.uploadFile)),
           ],
         ),

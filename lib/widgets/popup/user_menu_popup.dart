@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/user.dart';
 import 'app_popup.dart';
 import 'popup_item.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 用户菜单动作。
 enum UserMenuAction { managePanel, settings, profile, logout }
@@ -72,7 +73,7 @@ class UserMenuPopup extends StatelessWidget {
             Divider(height: 1, color: context.appColors.border),
             PopupItem(
                 icon: Icons.logout,
-                label: '退出登录',
+                label: tr('退出登录'),
                 onTap: () => onAction(UserMenuAction.logout)),
           ],
         ),

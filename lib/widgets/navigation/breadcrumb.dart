@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/directory_provider.dart';
 
@@ -14,8 +15,8 @@ class Breadcrumb extends StatefulWidget {
   /// 分类视图（图片/视频/音乐/文档）；非空时替代普通层级显示。
   final FileCategory? category;
 
-  /// 根节点文案与图标，分享页可换成分享名。
-  final String rootLabel;
+  /// 根节点文案与图标，分享页可换成分享名；为空时用「我的文件」。
+  final String? rootLabel;
   final IconData rootIcon;
 
   /// 点击某一层：0 = 根，i = 保留前 i 段。
@@ -28,7 +29,7 @@ class Breadcrumb extends StatefulWidget {
     super.key,
     required this.segments,
     this.category,
-    this.rootLabel = '我的文件',
+    this.rootLabel,
     this.rootIcon = Icons.home_outlined,
     required this.onNavigate,
     this.onOpenCurrentMenu,
@@ -98,7 +99,7 @@ class _BreadcrumbState extends State<Breadcrumb> {
                     Icon(widget.rootIcon,
                         size: 18, color: context.appColors.textPrimary),
                     const SizedBox(width: 6),
-                    Text(widget.rootLabel,
+                    Text(widget.rootLabel ?? tr('我的文件'),
                         style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -117,7 +118,9 @@ class _BreadcrumbState extends State<Breadcrumb> {
                       Icon(_categoryIcon(widget.category!),
                           size: 18, color: context.appColors.textPrimary),
                       const SizedBox(width: 6),
-                      Text(widget.category!.label,
+                      Text(
+                          AppLocalizations.of(context)
+                              .t(widget.category!.label),
                           style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,

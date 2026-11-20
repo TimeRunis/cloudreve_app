@@ -11,6 +11,7 @@ import '../widgets/common/empty_view.dart';
 import '../widgets/common/error_view.dart';
 import '../widgets/share/share_card.dart';
 import 'share_viewer_page.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// “我的分享”页面：查看、复制、打开、删除当前用户的分享链接。
 class MySharesPage extends ConsumerStatefulWidget {
@@ -57,26 +58,26 @@ class _MySharesPageState extends ConsumerState<MySharesPage> {
 
   Future<void> _copy(ShareLink share) async {
     await Clipboard.setData(ClipboardData(text: share.url));
-    if (mounted) _toast('链接已复制');
+    if (mounted) _toast(tr('链接已复制'));
   }
 
   Future<void> _delete(ShareLink share) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('删除分享'),
-        content: Text('确定删除分享「${share.name}」吗？'),
+        title: Text(tr('删除分享')),
+        content: Text(tr('确定删除分享「{name}」吗？', args: {'name': share.name})),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(tr('删除')),
           ),
         ],
       ),
@@ -85,18 +86,18 @@ class _MySharesPageState extends ConsumerState<MySharesPage> {
     try {
       await ref.read(apiProvider).deleteShare(share.id);
       if (!mounted) return;
-      _toast('已删除');
+      _toast(tr('已删除'));
       _reload();
     } catch (e) {
       print('[MySharesPage] 删除分享失败: $e');
-      if (mounted) _toast('删除失败，请重试');
+      if (mounted) _toast(tr('删除失败，请重试'));
     }
   }
 
   void _open(ShareLink share) {
     final site = ref.read(currentSiteProvider);
     if (site == null) {
-      _toast('当前没有可用站点');
+      _toast(tr('当前没有可用站点'));
       return;
     }
     Navigator.of(context).push(
@@ -134,12 +135,12 @@ class _MySharesPageState extends ConsumerState<MySharesPage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          tooltip: '返回',
+          tooltip: tr('返回'),
           icon: Icon(Icons.close, size: 18, color: colors.textSecondary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          '我的分享',
+          tr('我的分享'),
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w500,
@@ -148,7 +149,7 @@ class _MySharesPageState extends ConsumerState<MySharesPage> {
         ),
         actions: [
           IconButton(
-            tooltip: '刷新',
+            tooltip: tr('刷新'),
             icon: Icon(Icons.refresh, size: 20, color: colors.textSecondary),
             onPressed: _reload,
           ),
@@ -162,14 +163,16 @@ class _MySharesPageState extends ConsumerState<MySharesPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return ErrorView(message: '加载失败：${snapshot.error}');
+            return ErrorView(
+                message:
+                    tr('加载失败：{error}', args: {'error': '${snapshot.error}'}));
           }
           final shares = snapshot.data ?? const <ShareLink>[];
           if (shares.isEmpty) {
-            return const EmptyView(
+            return EmptyView(
               icon: Icons.share_outlined,
               iconSize: 48,
-              title: '还没有分享链接',
+              title: tr('还没有分享链接'),
             );
           }
           return ListView.separated(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../popup/app_popup.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 视图设置面板（受控组件：持有本地选中态，把变化通过回调传出）。
 class ViewPanel extends StatefulWidget {
@@ -43,12 +44,12 @@ class _ViewPanelState extends State<ViewPanel> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('布局', style: titleStyle),
+              Text(tr('布局'), style: titleStyle),
               const SizedBox(height: 8),
               SegmentedGroup<String>(
-                options: const [
-                  (Icons.grid_view, '网格', 'grid'),
-                  (Icons.view_list, '列表', 'list'),
+                options: [
+                  (Icons.grid_view, tr('网格'), 'grid'),
+                  (Icons.view_list, tr('列表'), 'list'),
                 ],
                 value: _viewMode,
                 onChanged: (v) {
@@ -57,12 +58,12 @@ class _ViewPanelState extends State<ViewPanel> {
                 },
               ),
               const SizedBox(height: 16),
-              Text('缩略图', style: titleStyle),
+              Text(tr('缩略图'), style: titleStyle),
               const SizedBox(height: 8),
               SegmentedGroup<bool>(
-                options: const [
-                  (Icons.image_outlined, '开启', true),
-                  (Icons.hide_image_outlined, '关闭', false),
+                options: [
+                  (Icons.image_outlined, tr('开启'), true),
+                  (Icons.hide_image_outlined, tr('关闭'), false),
                 ],
                 value: _thumbnails,
                 onChanged: (v) {
@@ -71,7 +72,7 @@ class _ViewPanelState extends State<ViewPanel> {
                 },
               ),
               const SizedBox(height: 16),
-              Text('分页大小', style: titleStyle),
+              Text(tr('分页大小'), style: titleStyle),
               const SizedBox(height: 4),
               Row(
                 children: [

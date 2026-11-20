@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../core/i18n/app_localizations.dart';
 
 /// 上传任务状态。
 enum UploadStatus { waiting, uploading, paused, completed, failed }
@@ -44,9 +45,8 @@ class UploadSession {
 
   factory UploadSession.fromJson(Map<String, dynamic> json) {
     final storagePolicy = json['storage_policy'];
-    final policyType = storagePolicy is Map
-        ? storagePolicy['type'] as String?
-        : null;
+    final policyType =
+        storagePolicy is Map ? storagePolicy['type'] as String? : null;
     final relay = storagePolicy is Map
         ? (storagePolicy['relay'] as bool? ?? false)
         : false;
@@ -137,11 +137,11 @@ class UploadTask {
       : (uploadedBytes / totalSize).clamp(0.0, 1.0).toDouble();
 
   String get statusLabel => switch (status) {
-        UploadStatus.waiting => '排队中',
-        UploadStatus.uploading => '上传中',
-        UploadStatus.paused => '已暂停',
-        UploadStatus.completed => '已完成',
-        UploadStatus.failed => '上传失败',
+        UploadStatus.waiting => tr('排队中'),
+        UploadStatus.uploading => tr('上传中'),
+        UploadStatus.paused => tr('已暂停'),
+        UploadStatus.completed => tr('已完成'),
+        UploadStatus.failed => tr('上传失败'),
       };
 
   int get bytesLeft => totalSize - uploadedBytes;

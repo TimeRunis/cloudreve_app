@@ -4,12 +4,13 @@ import '../core/network/api_exception.dart';
 import '../models/site_config.dart';
 import 'api_provider.dart';
 import 'settings_provider.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 当前站点的基础配置（标题 + 主题色）。
 final siteConfigProvider = FutureProvider<SiteConfig>((ref) async {
   final site = ref.watch(currentSiteProvider);
   if (site == null) {
-    throw const ApiException(-1, '未配置站点');
+    throw ApiException(-1, tr('未配置站点'));
   }
   final api = ref.watch(apiProvider);
   return api.getSiteConfig();
@@ -19,7 +20,7 @@ final siteConfigProvider = FutureProvider<SiteConfig>((ref) async {
 final loginConfigProvider = FutureProvider<LoginConfig>((ref) async {
   final site = ref.watch(currentSiteProvider);
   if (site == null) {
-    throw const ApiException(-1, '未配置站点');
+    throw ApiException(-1, tr('未配置站点'));
   }
   final api = ref.watch(apiProvider);
   return api.getLoginConfig();

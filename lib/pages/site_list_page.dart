@@ -6,6 +6,7 @@ import '../providers/settings_provider.dart';
 import '../providers/sites_provider.dart';
 import '../widgets/common/empty_view.dart';
 import 'site_edit_page.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 站点管理 / 切换页。
 class SiteListPage extends ConsumerWidget {
@@ -17,13 +18,13 @@ class SiteListPage extends ConsumerWidget {
     final currentId = ref.watch(settingsProvider).currentSiteId;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('站点')),
+      appBar: AppBar(title: Text(tr('站点'))),
       body: sites.isEmpty
           ? EmptyView(
               icon: Icons.cloud_off_outlined,
               iconSize: 64,
-              title: '还没有配置任何站点',
-              actionLabel: '添加站点',
+              title: tr('还没有配置任何站点'),
+              actionLabel: tr('添加站点'),
               onAction: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SiteEditPage()),
               ),
@@ -91,16 +92,17 @@ class SiteListPage extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('删除站点'),
-        content: Text('确定删除站点「${site.name}」及其本地登录状态吗？'),
+        title: Text(tr('删除站点')),
+        content:
+            Text(tr('确定删除站点「{name}」及其本地登录状态吗？', args: {'name': site.name})),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+            child: Text(tr('删除')),
           ),
         ],
       ),
@@ -110,4 +112,3 @@ class SiteListPage extends ConsumerWidget {
     }
   }
 }
-

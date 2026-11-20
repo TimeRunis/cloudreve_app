@@ -10,6 +10,7 @@ import '../models/download_task.dart';
 import 'api_provider.dart';
 import 'download_provider.dart';
 import 'storage_provider.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 检查更新状态。
 enum UpdateCheckStatus {
@@ -165,7 +166,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
         state = state.copyWith(
           status: UpdateCheckStatus.failed,
           installedVersion: installed.raw,
-          error: '未获取到发布信息',
+          error: tr('未获取到发布信息'),
         );
         return null;
       }
@@ -187,7 +188,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
       AppLogger.log.i('[Update] 当前 $installed，最新 ${release.versionLabel}');
       return release.version.isNewerThan(installed) ? release : null;
     } catch (e, stackTrace) {
-      AppLogger.log.e('[Update] 检查更新失败', error: e, stackTrace: stackTrace);
+      AppLogger.log.e(tr('[Update] 检查更新失败'), error: e, stackTrace: stackTrace);
       state = state.copyWith(
         status: UpdateCheckStatus.failed,
         installedVersion: installed.raw,
@@ -210,7 +211,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
 
   String _describeError(Object error) {
     final text = error.toString().replaceFirst('Exception: ', '').trim();
-    if (text.isEmpty) return '网络异常';
+    if (text.isEmpty) return tr('网络异常');
     return text.length > 80 ? '${text.substring(0, 80)}…' : text;
   }
 
@@ -254,8 +255,10 @@ class UpdateNotifier extends Notifier<UpdateState> {
       AppLogger.log.i('[Update] 更新包已加入下载队列：${task.savePath}');
       return task;
     } catch (e, stackTrace) {
-      AppLogger.log.e('[Update] 加入下载队列失败', error: e, stackTrace: stackTrace);
-      state = state.copyWith(error: '加入下载队列失败：${_describeError(e)}');
+      AppLogger.log
+          .e(tr('[Update] 加入下载队列失败'), error: e, stackTrace: stackTrace);
+      state = state.copyWith(
+          error: tr('加入下载队列失败：{error}', args: {'error': _describeError(e)}));
       return null;
     }
   }

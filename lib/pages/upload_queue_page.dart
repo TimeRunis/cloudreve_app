@@ -10,6 +10,7 @@ import '../widgets/common/empty_view.dart';
 import '../widgets/upload/upload_menu_popup.dart';
 import '../widgets/upload/upload_queue_app_bar.dart';
 import '../widgets/upload/upload_task_tile.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 上传队列页面。
 ///
@@ -50,10 +51,10 @@ class _UploadQueuePageState extends ConsumerState<UploadQueuePage> {
             onMenuSelected: _handleMenu,
           ),
           body: tasks.isEmpty
-              ? const EmptyView(
+              ? EmptyView(
                   icon: Icons.cloud_upload_outlined,
                   iconSize: 48,
-                  title: '暂无上传任务',
+                  title: tr('暂无上传任务'),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),

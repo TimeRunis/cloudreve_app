@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/directory_provider.dart';
 import '../common/toolbar_action_group.dart';
@@ -11,8 +12,8 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
   final List<String> segments;
   final FileCategory? category;
 
-  /// 面包屑根节点文案与图标（默认「我的文件」，「与我共享」等视图可覆盖）。
-  final String rootLabel;
+  /// 面包屑根节点文案与图标（为空时由面包屑使用「我的文件」）。
+  final String? rootLabel;
   final IconData rootIcon;
 
   /// 「排序」按钮的 key，排序菜单以它为锚点。
@@ -38,7 +39,7 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.segments,
     this.category,
-    this.rootLabel = '我的文件',
+    this.rootLabel,
     this.rootIcon = Icons.home_outlined,
     this.sortButtonKey,
     this.viewButtonKey,
@@ -81,19 +82,19 @@ class HomeToolbar extends StatelessWidget implements PreferredSizeWidget {
               ToolbarActionItem(
                 key: viewButtonKey,
                 icon: Icons.grid_view_outlined,
-                tooltip: '切换视图',
+                tooltip: tr('切换视图'),
                 onTap: onToggleView,
               ),
               ToolbarActionItem(
                 key: sortButtonKey,
                 icon: Icons.swap_vert,
-                tooltip: '排序',
+                tooltip: tr('排序'),
                 onTap: onSort,
               ),
               ToolbarActionItem(
                 key: moreButtonKey,
                 icon: Icons.more_horiz,
-                tooltip: '更多',
+                tooltip: tr('更多'),
                 onTap: onMore,
               ),
             ],

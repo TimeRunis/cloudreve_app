@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/date_time.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/update/update_interval.dart';
 import '../../providers/settings_provider.dart';
@@ -26,11 +27,12 @@ class _UpdateCheckRowState extends ConsumerState<UpdateCheckRow> {
   @override
   Widget build(BuildContext context) {
     final update = ref.watch(updateProvider);
+    final l10n = AppLocalizations.of(context);
     final checking = update.status == UpdateCheckStatus.checking;
     return SettingsTile(
       icon: Icons.system_update_outlined,
-      title: '检查更新',
-      subtitle: _subtitle(update),
+      title: l10n.t('检查更新'),
+      subtitle: _subtitle(update, l10n),
       trailing: checking
           ? const SizedBox(
               width: 16,
@@ -49,21 +51,24 @@ class _UpdateCheckRowState extends ConsumerState<UpdateCheckRow> {
     );
   }
 
-  String _subtitle(UpdateState state) {
+  String _subtitle(UpdateState state, AppLocalizations l10n) {
     switch (state.status) {
       case UpdateCheckStatus.idle:
         final last = state.lastCheckAt;
         return last == null
-            ? '检查 GitHub 上是否有新版本'
-            : '上次检查：${formatDateTime(last)}';
+            ? l10n.t('检查 GitHub 上是否有新版本')
+            : l10n.t('上次检查：{time}', args: {'time': formatDateTime(last)});
       case UpdateCheckStatus.checking:
-        return '正在检查新版本…';
+        return l10n.t('正在检查新版本…');
       case UpdateCheckStatus.upToDate:
-        return '已是最新版本';
+        return l10n.t('已是最新版本');
       case UpdateCheckStatus.available:
-        return '发现新版本 ${state.release?.versionLabel ?? ''}';
+        return l10n.t(
+          '发现新版本 {version}',
+          args: {'version': state.release?.versionLabel ?? ''},
+        );
       case UpdateCheckStatus.failed:
-        return '检查失败，点击重试';
+        return l10n.t('检查失败，点击重试');
     }
   }
 }
@@ -82,12 +87,16 @@ class _UpdateIntervalRowState extends ConsumerState<UpdateIntervalRow> {
   @override
   Widget build(BuildContext context) {
     final interval = ref.watch(settingsProvider).updateCheckInterval;
+    final l10n = AppLocalizations.of(context);
     return KeyedSubtree(
       key: _anchorKey,
       child: SettingsTile(
         icon: Icons.schedule,
-        title: '自动检查更新',
-        subtitle: '当前：${interval.label}',
+        title: l10n.t('自动检查更新'),
+        subtitle: l10n.t(
+          '当前：{label}',
+          args: {'label': _intervalLabel(l10n, interval)},
+        ),
         trailing: Icon(Icons.expand_more, color: context.appColors.textMuted),
         onTap: _openPicker,
       ),
@@ -96,6 +105,7 @@ class _UpdateIntervalRowState extends ConsumerState<UpdateIntervalRow> {
 
   Future<void> _openPicker() async {
     final current = ref.read(settingsProvider).updateCheckInterval;
+    final l10n = AppLocalizations.of(context);
     final selected = await showAppPopup<UpdateCheckInterval>(
       context: context,
       anchorKey: _anchorKey,
@@ -107,7 +117,7 @@ class _UpdateIntervalRowState extends ConsumerState<UpdateIntervalRow> {
             for (final option in UpdateCheckInterval.values)
               PopupItem(
                 icon: _iconFor(option),
-                label: option.label,
+                label: _intervalLabel(l10n, option),
                 selected: option == current,
                 onTap: () => Navigator.of(popupContext).pop(option),
               ),
@@ -118,6 +128,17 @@ class _UpdateIntervalRowState extends ConsumerState<UpdateIntervalRow> {
     if (selected == null || !mounted) return;
     await ref.read(settingsProvider.notifier).setUpdateCheckInterval(selected);
   }
+
+  String _intervalLabel(
+    AppLocalizations l10n,
+    UpdateCheckInterval interval,
+  ) =>
+      switch (interval) {
+        UpdateCheckInterval.launch => l10n.t('每次启动'),
+        UpdateCheckInterval.daily => l10n.t('每天'),
+        UpdateCheckInterval.weekly => l10n.t('每 7 天'),
+        UpdateCheckInterval.monthly => l10n.t('每 30 天'),
+      };
 
   IconData _iconFor(UpdateCheckInterval interval) => switch (interval) {
         UpdateCheckInterval.launch => Icons.rocket_launch_outlined,

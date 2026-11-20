@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 
 /// 加载失败占位：图标 + 说明文案 + 可选重试按钮。
@@ -12,14 +13,14 @@ class ErrorView extends StatelessWidget {
   /// 为空时不显示重试按钮。
   final VoidCallback? onRetry;
 
-  final String retryLabel;
+  final String? retryLabel;
 
   const ErrorView({
     super.key,
     required this.message,
     this.icon = Icons.error_outline,
     this.onRetry,
-    this.retryLabel = '重试',
+    this.retryLabel,
   });
 
   @override
@@ -44,7 +45,7 @@ class ErrorView extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh, size: 18),
-              label: Text(retryLabel),
+              label: Text(retryLabel ?? tr('重试')),
             ),
           ],
         ],

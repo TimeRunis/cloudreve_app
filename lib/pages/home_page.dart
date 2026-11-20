@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/i18n/app_localizations.dart';
 import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
@@ -203,7 +204,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (_lastBackPress == null ||
         now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
       _lastBackPress = now;
-      _toast('再按一次返回键退出软件');
+      _toast(AppLocalizations.of(context).t('再按一次返回键退出软件'));
     } else {
       SystemNavigator.pop();
     }
@@ -304,12 +305,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final site = ref.read(currentSiteProvider);
     final redirect = file.sharedRedirect;
     if (site == null || redirect == null) {
-      _toast('无法打开该分享');
+      _toast(tr('无法打开该分享'));
       return;
     }
     final parsed = parseShareLinkFromText(redirect, site.baseUrl);
     if (parsed == null) {
-      _toast('分享链接格式无法识别');
+      _toast(tr('分享链接格式无法识别'));
       return;
     }
     Navigator.of(context).push(
@@ -365,7 +366,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       context,
       anchorKey: _menuButtonKey,
       onNavigate: _openSidebarFolder,
-      onPlaceholder: () => _toast('功能暂未实现'),
+      onPlaceholder: () => _toast(AppLocalizations.of(context).t('功能暂未实现')),
       onCycleTheme: _cycleTheme,
       onCategory: _openCategory,
       onDownloads: _openDownloads,
@@ -423,7 +424,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (count > 0) {
       _openUploadQueue();
     } else {
-      _toast('未选择可上传的文件');
+      _toast(tr('未选择可上传的文件'));
     }
   }
 
@@ -447,7 +448,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       case UserMenuAction.managePanel:
       case UserMenuAction.settings:
       case UserMenuAction.profile:
-        _toast('功能暂未实现');
+        _toast(tr('功能暂未实现'));
         break;
     }
   }
@@ -460,7 +461,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         if (action == AddMenuAction.uploadFile) {
           _pickAndUpload();
         } else {
-          _toast('功能暂未实现：$action');
+          _toast(tr('功能暂未实现'));
         }
       },
     );
@@ -563,24 +564,24 @@ class _HomePageState extends ConsumerState<HomePage> {
       _browseCtrl.invertSelection(_currentFiles());
       return;
     }
-    const labels = {
-      FileOperation.open: '打开',
-      FileOperation.rename: '重命名',
-      FileOperation.copy: '复制',
-      FileOperation.directLink: '获取直链',
-      FileOperation.tag: '标签',
-      FileOperation.organize: '整理',
-      FileOperation.more: '更多操作',
-      FileOperation.details: '详细信息',
+    final labels = {
+      FileOperation.open: tr('打开'),
+      FileOperation.rename: tr('重命名'),
+      FileOperation.copy: tr('复制'),
+      FileOperation.directLink: tr('获取直链'),
+      FileOperation.tag: tr('标签'),
+      FileOperation.organize: tr('整理'),
+      FileOperation.more: tr('更多操作'),
+      FileOperation.details: tr('详细信息'),
     };
-    _toast('功能暂未实现：${labels[op]}');
+    _toast(tr('功能暂未实现：{action}', args: {'action': labels[op] ?? ''}));
   }
 
   /// 对当前选中的单个文件/文件夹（或无选中时的当前文件夹）发起分享。
   void _shareSingleItem() {
     final selected = _selectedItems();
     if (selected.length > 1) {
-      _toast('一次只能分享一个文件或文件夹');
+      _toast(tr('一次只能分享一个文件或文件夹'));
       return;
     }
     FileItem target;
@@ -595,7 +596,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         path: pathToUri(_path),
       );
     } else {
-      _toast('请先选择要分享的文件或文件夹');
+      _toast(tr('请先选择要分享的文件或文件夹'));
       return;
     }
     _showCreateShare(target);
@@ -618,7 +619,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (selected.isEmpty) {
       // 面包屑里的“删除”针对当前目录本身；根目录不处理。
       if (_path == '/' || _category != null || _isSearchActive) {
-        _toast('没有可删除的选中文件');
+        _toast(tr('没有可删除的选中文件'));
         return;
       }
       deletingCurrentFolder = true;
@@ -652,10 +653,10 @@ class _HomePageState extends ConsumerState<HomePage> {
         _clearSelection();
         _refresh();
       }
-      _toast(options.skipSoftDelete ? '已彻底删除' : '已移入回收站');
+      _toast(options.skipSoftDelete ? tr('已彻底删除') : tr('已移入回收站'));
     } catch (e) {
       print('[HomePage] 删除文件失败: $e');
-      if (mounted) _toast('删除失败，请重试');
+      if (mounted) _toast(tr('删除失败，请重试'));
     }
   }
 
@@ -664,11 +665,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     final selected = _selectedItems();
     final files = selected.where((f) => !f.isFolder).toList();
     if (files.isEmpty) {
-      _toast('文件夹打包下载暂不支持');
+      _toast(tr('文件夹打包下载暂不支持'));
       return;
     }
     if (files.length != selected.length) {
-      _toast('文件夹打包下载暂不支持，将只下载选中的文件');
+      _toast(tr('文件夹打包下载暂不支持，将只下载选中的文件'));
     }
     try {
       final count = await ref
@@ -678,15 +679,18 @@ class _HomePageState extends ConsumerState<HomePage> {
       if (count > 0) {
         _clearSelection(); // 加入队列成功后自动退出多选。
       }
-      _toast(count > 0 ? '已加入下载队列：$count 个任务' : '获取下载链接失败');
+      _toast(count > 0
+          ? tr('已加入下载队列：{count} 个任务', args: {'count': count})
+          : tr('获取下载链接失败'));
     } catch (e) {
       print('[HomePage] 加入下载队列失败: $e');
-      _toast('加入下载队列失败');
+      _toast(tr('加入下载队列失败'));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final user = ref.watch(authProvider).user;
     final browse = ref.watch(homeFileBrowserProvider);
     // 只读不订阅：角标区域用 ListenableBuilder 单独订阅，避免主页每秒整体重建。
@@ -707,7 +711,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           elevation: 0,
           leading: IconButton(
             key: _menuButtonKey,
-            tooltip: '菜单',
+            tooltip: l10n.t('菜单'),
             icon: Icon(Icons.menu, color: context.appColors.textPrimary),
             onPressed: _openSidebar,
           ),
@@ -717,7 +721,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     listenable: uploadManager,
                     builder: (context, _) => AppBarIconButton(
                       icon: Icons.upload_outlined,
-                      tooltip: '上传',
+                      tooltip: l10n.t('上传'),
                       badgeCount: uploadManager.activeCount,
                       onPressed: _openUploadQueue,
                     ),
@@ -726,7 +730,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     listenable: downloadManager,
                     builder: (context, _) => AppBarIconButton(
                       icon: Icons.download_outlined,
-                      tooltip: '下载',
+                      tooltip: l10n.t('下载'),
                       badgeCount: downloadManager.activeCount,
                       onPressed: _openDownloads,
                     ),
@@ -734,13 +738,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                   AppBarIconButton(
                     key: _searchKey,
                     icon: Icons.search,
-                    tooltip: '搜索',
+                    tooltip: l10n.t('搜索'),
                     onPressed: _openSearch,
                   ),
                   AppBarIconButton(
                     key: _addMenuKey,
                     icon: Icons.add,
-                    tooltip: '添加',
+                    tooltip: l10n.t('添加'),
                     onPressed: _openAddMenu,
                   ),
                   SizedBox(
@@ -763,7 +767,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           bottom: HomeToolbar(
             segments: _sharedWithMe ? const [] : browse.pathSegments,
             category: _sharedWithMe ? null : _category,
-            rootLabel: _sharedWithMe ? '与我共享' : '我的文件',
+            rootLabel: _sharedWithMe ? l10n.t('与我共享') : l10n.t('我的文件'),
             rootIcon:
                 _sharedWithMe ? Icons.people_outline : Icons.home_outlined,
             viewButtonKey: _viewButtonKey,
@@ -862,7 +866,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 const SizedBox(height: 80),
-                Center(child: Text('未找到与“$keyword”相关的文件')),
+                Center(
+                    child: Text(tr('未找到与“{keyword}”相关的文件',
+                        args: {'keyword': keyword}))),
               ],
             )
           : _buildListing(DirectoryListing(files: files)),
@@ -884,7 +890,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         _refresh();
         break;
       case MoreMenuAction.pin:
-        _toast('固定到侧边栏功能暂未实现');
+        _toast(tr('固定到侧边栏功能暂未实现'));
         break;
       case MoreMenuAction.selectAll:
         ctrl.selectAll(_currentFiles());

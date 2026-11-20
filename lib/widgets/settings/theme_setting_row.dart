@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/theme_mode_label.dart';
 import '../../providers/settings_provider.dart';
@@ -22,12 +23,16 @@ class _ThemeSettingRowState extends ConsumerState<ThemeSettingRow> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(settingsProvider).themeMode;
+    final l10n = AppLocalizations.of(context);
     return KeyedSubtree(
       key: _anchorKey,
       child: SettingsTile(
         icon: Icons.brightness_6_outlined,
-        title: '主题',
-        subtitle: '当前：${themeModeLabel(themeMode)}',
+        title: l10n.t('主题'),
+        subtitle: l10n.t(
+          '当前：{label}',
+          args: {'label': themeModeLabel(themeMode, l10n)},
+        ),
         trailing: Icon(Icons.expand_more, color: context.appColors.textMuted),
         onTap: () => showThemePicker(
           context: context,

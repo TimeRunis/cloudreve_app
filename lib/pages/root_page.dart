@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_events.dart';
+import '../core/i18n/app_localizations.dart';
 import '../core/network/cloudreve_api.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
@@ -120,20 +121,28 @@ class _RootPageState extends ConsumerState<RootPage>
 
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('打开分享链接'),
-          content: Text('检测到来自「$ownerLabel」的分享链接，是否打开？'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('取消'),
+        builder: (dialogContext) {
+          final l10n = AppLocalizations.of(dialogContext);
+          return AlertDialog(
+            title: Text(l10n.t('打开分享链接')),
+            content: Text(
+              l10n.t(
+                '检测到来自「{owner}」的分享链接，是否打开？',
+                args: {'owner': ownerLabel},
+              ),
             ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('打开'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(l10n.t('取消')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(l10n.t('打开')),
+              ),
+            ],
+          );
+        },
       );
       if (confirmed != true || !mounted) return;
       Navigator.of(context).push(
@@ -167,13 +176,14 @@ class _RootPageState extends ConsumerState<RootPage>
     final auth = ref.watch(authProvider);
 
     if (sites.isEmpty) {
+      final l10n = AppLocalizations.of(context);
       return Scaffold(
         appBar: AppBar(title: const Text('Cloudreve')),
         body: EmptyView(
           icon: Icons.cloud_off_outlined,
           iconSize: 64,
-          title: '还没有配置任何站点',
-          actionLabel: '添加站点',
+          title: l10n.t('还没有配置任何站点'),
+          actionLabel: l10n.t('添加站点'),
           onAction: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const SiteEditPage()),
           ),

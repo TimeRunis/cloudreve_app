@@ -11,6 +11,7 @@ import '../widgets/common/empty_view.dart';
 import '../widgets/common/error_view.dart';
 import '../widgets/trash/trash_detail_sheet.dart';
 import '../widgets/trash/trash_item.dart';
+import '../core/i18n/app_localizations.dart';
 
 /// 回收站页面：展示回收站文件，支持恢复和彻底删除。
 class TrashPage extends ConsumerStatefulWidget {
@@ -59,7 +60,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
         onCopyPath: () {
           Clipboard.setData(ClipboardData(text: path));
           Navigator.of(sheetContext).pop();
-          _toast('原位置已复制');
+          _toast(tr('原位置已复制'));
         },
       ),
     );
@@ -68,28 +69,30 @@ class _TrashPageState extends ConsumerState<TrashPage> {
   Future<void> _restore(FileItem item) async {
     final confirmed = await showConfirmDialog(
       context,
-      title: '恢复文件',
-      message: '确定将「${trashDisplayName(item)}」恢复到原位置吗？',
-      actionLabel: '恢复',
+      title: tr('恢复文件'),
+      message:
+          tr('确定将「{name}」恢复到原位置吗？', args: {'name': trashDisplayName(item)}),
+      actionLabel: tr('恢复'),
     );
     if (!confirmed || !mounted) return;
     try {
       await ref.read(apiProvider).restoreFiles(uris: [item.path]);
       if (!mounted) return;
-      _toast('已恢复');
+      _toast(tr('已恢复'));
       _reload();
     } catch (e) {
       print('[TrashPage] 恢复失败: $e');
-      if (mounted) _toast('恢复失败，请重试');
+      if (mounted) _toast(tr('恢复失败，请重试'));
     }
   }
 
   Future<void> _deleteForever(FileItem item) async {
     final confirmed = await showConfirmDialog(
       context,
-      title: '彻底删除',
-      message: '确定彻底删除「${trashDisplayName(item)}」吗？此操作不可恢复。',
-      actionLabel: '彻底删除',
+      title: tr('彻底删除'),
+      message: tr('确定彻底删除「{name}」吗？此操作不可恢复。',
+          args: {'name': trashDisplayName(item)}),
+      actionLabel: tr('彻底删除'),
       danger: true,
     );
     if (!confirmed || !mounted) return;
@@ -99,11 +102,11 @@ class _TrashPageState extends ConsumerState<TrashPage> {
         skipSoftDelete: true,
       );
       if (!mounted) return;
-      _toast('已彻底删除');
+      _toast(tr('已彻底删除'));
       _reload();
     } catch (e) {
       print('[TrashPage] 彻底删除失败: $e');
-      if (mounted) _toast('删除失败，请重试');
+      if (mounted) _toast(tr('删除失败，请重试'));
     }
   }
 
@@ -120,13 +123,13 @@ class _TrashPageState extends ConsumerState<TrashPage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          tooltip: '返回',
+          tooltip: tr('返回'),
           icon: Icon(Icons.close,
               size: 18, color: context.appColors.textSecondary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          '回收站',
+          tr('回收站'),
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w500,
@@ -135,7 +138,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
         ),
         actions: [
           IconButton(
-            tooltip: '刷新',
+            tooltip: tr('刷新'),
             icon: Icon(Icons.refresh,
                 size: 20, color: context.appColors.textSecondary),
             onPressed: _reload,
@@ -150,14 +153,16 @@ class _TrashPageState extends ConsumerState<TrashPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return ErrorView(message: '加载失败：${snapshot.error}');
+            return ErrorView(
+                message:
+                    tr('加载失败：{error}', args: {'error': '${snapshot.error}'}));
           }
           final files = snapshot.data ?? const <FileItem>[];
           if (files.isEmpty) {
-            return const EmptyView(
+            return EmptyView(
               icon: Icons.delete_outline,
               iconSize: 48,
-              title: '回收站是空的',
+              title: tr('回收站是空的'),
             );
           }
           return ListView.builder(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/settings_provider.dart';
 import 'app_popup.dart';
@@ -23,6 +24,7 @@ class ThemeModePopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AppPopup(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -31,7 +33,7 @@ class ThemeModePopup extends StatelessWidget {
           for (final option in options)
             PopupItem(
               icon: option.$3,
-              label: option.$2,
+              label: l10n.t(option.$2),
               selected: selected == option.$1,
               onTap: () => Navigator.of(context).pop(option.$1),
             ),

@@ -1,14 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/i18n/app_language.dart';
 import '../core/update/update_interval.dart';
 import '../models/site.dart';
 import 'sites_provider.dart';
 import 'storage_provider.dart';
 
-/// 应用设置：主题模式 + 当前站点 id + 下载设置 + 检查更新频率。
+/// 应用设置：主题模式 + 界面语言 + 当前站点 id + 下载设置 + 检查更新频率。
 class AppSettings {
   final String themeMode; // system / light / dark
   final String? currentSiteId;
+
+  /// 界面语言（默认跟随系统）。
+  final AppLanguage language;
 
   /// 是否开启多线程下载（默认关闭）。
   final bool multiThreadDownload;
@@ -22,6 +26,7 @@ class AppSettings {
   const AppSettings({
     this.themeMode = 'system',
     this.currentSiteId,
+    this.language = AppLanguage.system,
     this.multiThreadDownload = false,
     this.downloadThreadCount = 4,
     this.updateCheckInterval = UpdateCheckInterval.launch,
@@ -30,6 +35,7 @@ class AppSettings {
   AppSettings copyWith({
     String? themeMode,
     String? currentSiteId,
+    AppLanguage? language,
     bool? multiThreadDownload,
     int? downloadThreadCount,
     UpdateCheckInterval? updateCheckInterval,
@@ -37,6 +43,7 @@ class AppSettings {
       AppSettings(
         themeMode: themeMode ?? this.themeMode,
         currentSiteId: currentSiteId ?? this.currentSiteId,
+        language: language ?? this.language,
         multiThreadDownload: multiThreadDownload ?? this.multiThreadDownload,
         downloadThreadCount: downloadThreadCount ?? this.downloadThreadCount,
         updateCheckInterval: updateCheckInterval ?? this.updateCheckInterval,
@@ -53,6 +60,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
     return AppSettings(
       themeMode: storage.getThemeMode(),
       currentSiteId: storage.getCurrentSiteId(),
+      language: AppLanguage.fromValue(storage.getLanguage()),
       multiThreadDownload: storage.getMultiThreadDownload(),
       downloadThreadCount: storage.getDownloadThreadCount(),
       updateCheckInterval:
@@ -63,6 +71,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setThemeMode(String mode) async {
     state = state.copyWith(themeMode: mode);
     await ref.read(storageProvider).setThemeMode(mode);
+  }
+
+  Future<void> setLanguage(AppLanguage language) async {
+    state = state.copyWith(language: language);
+    await ref.read(storageProvider).setLanguage(language.value);
   }
 
   Future<void> setCurrentSite(String id) async {

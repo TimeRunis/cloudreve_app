@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_popup.dart';
 
@@ -115,7 +116,7 @@ class FileOperationsPopup extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                style.label,
+                tr(style.label),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

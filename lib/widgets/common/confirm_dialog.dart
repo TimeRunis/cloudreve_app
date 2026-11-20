@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 通用确认弹窗：返回 `true` 表示用户点了确认。
 ///
@@ -18,7 +19,7 @@ Future<bool> showConfirmDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('取消'),
+          child: Text(tr('取消')),
         ),
         FilledButton(
           style: danger

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import 'upload_menu_popup.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 上传队列标题栏：返回、添加文件、更多菜单。
 ///
@@ -58,12 +59,12 @@ class _UploadQueueAppBarState extends State<UploadQueueAppBar> {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       leading: IconButton(
-        tooltip: '返回',
+        tooltip: tr('返回'),
         icon: Icon(Icons.close, size: 18, color: colors.textSecondary),
         onPressed: widget.onClose,
       ),
       title: Text(
-        '上传队列',
+        tr('上传队列'),
         style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w500,
@@ -72,14 +73,14 @@ class _UploadQueueAppBarState extends State<UploadQueueAppBar> {
       ),
       actions: [
         IconButton(
-          tooltip: '添加文件',
+          tooltip: tr('添加文件'),
           icon: Icon(Icons.add, size: 20, color: colors.textSecondary),
           onPressed: widget.onPickFiles,
         ),
         KeyedSubtree(
           key: _menuKey,
           child: IconButton(
-            tooltip: '更多操作',
+            tooltip: tr('更多操作'),
             icon: Icon(Icons.more_horiz, color: colors.textSecondary),
             onPressed: _openMenu,
           ),

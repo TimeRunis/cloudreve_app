@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/i18n/app_localizations.dart';
 import '../core/network/api_exception.dart';
 import '../core/network/cloudreve_api.dart';
 import '../providers/api_provider.dart';
@@ -40,6 +41,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _loadCaptcha() async {
+    final l10n = AppLocalizations.of(context);
     final api = ref.read(apiProvider);
     setState(() => _captchaLoading = true);
     try {
@@ -47,8 +49,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (mounted) setState(() => _captcha = c);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('验证码加载失败：$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.t('验证码加载失败：{error}', args: {'error': '$e'}),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _captchaLoading = false);
@@ -56,18 +63,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _login() async {
+    final l10n = AppLocalizations.of(context);
     final site = ref.read(currentSiteProvider);
     if (site == null) return;
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
     if (email.isEmpty || password.isEmpty) {
-      _toast('请输入邮箱和密码');
+      _toast(l10n.t('请输入邮箱和密码'));
       return;
     }
     final needCaptcha =
         ref.read(loginConfigProvider).valueOrNull?.captchaEnabled ?? false;
     if (needCaptcha && _captchaCtrl.text.trim().isEmpty) {
-      _toast('请输入验证码');
+      _toast(l10n.t('请输入验证码'));
       return;
     }
 
@@ -86,15 +94,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } on ApiException catch (e) {
       if (mounted) {
         if (e.isTwoFactor) {
-          _toast('该账号需要两步验证，暂不支持');
+          _toast(l10n.t('该账号需要两步验证，暂不支持'));
         } else {
-          _toast(e.message.isEmpty ? '登录失败' : e.message);
+          _toast(e.message.isEmpty ? l10n.t('登录失败') : e.message);
         }
         if (needCaptcha) _loadCaptcha();
         _captchaCtrl.clear();
       }
     } catch (e) {
-      if (mounted) _toast('登录失败：$e');
+      if (mounted) {
+        _toast(l10n.t('登录失败：{error}', args: {'error': '$e'}));
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -109,6 +119,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final site = ref.watch(currentSiteProvider);
     final config = ref.watch(siteConfigProvider).valueOrNull;
+    final l10n = AppLocalizations.of(context);
     final needCaptcha =
         ref.watch(loginConfigProvider).valueOrNull?.captchaEnabled ?? false;
 
@@ -120,7 +131,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(site?.name ?? '登录'),
+        title: Text(site?.name ?? l10n.t('登录')),
         actions: const [
           ThemeModeMenu(),
           SizedBox(width: 4),
@@ -152,10 +163,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(
-                    labelText: '邮箱',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.t('邮箱'),
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -164,7 +175,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   obscureText: _obscure,
                   autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(
-                    labelText: '密码',
+                    labelText: l10n.t('密码'),
                     prefixIcon: const Icon(Icons.lock_outline),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
@@ -181,10 +192,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       Expanded(
                         child: TextField(
                           controller: _captchaCtrl,
-                          decoration: const InputDecoration(
-                            labelText: '验证码',
-                            prefixIcon: Icon(Icons.verified_outlined),
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: l10n.t('验证码'),
+                            prefixIcon: const Icon(Icons.verified_outlined),
+                            border: const OutlineInputBorder(),
                           ),
                         ),
                       ),
@@ -205,14 +216,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('登录'),
+                      : Text(l10n.t('登录')),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SiteListPage()),
                   ),
-                  child: const Text('切换 / 管理站点'),
+                  child: Text(l10n.t('切换 / 管理站点')),
                 ),
               ],
             ),
@@ -245,15 +256,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _imageFromDataUri(String dataUri) {
+    final l10n = AppLocalizations.of(context);
     if (!dataUri.startsWith('data:') || !dataUri.contains(',')) {
-      return const Text('点击刷新');
+      return Text(l10n.t('点击刷新'));
     }
     final base64 = dataUri.substring(dataUri.indexOf(',') + 1);
     try {
       final bytes = base64Decode(base64);
       return Image.memory(bytes, fit: BoxFit.cover);
     } catch (_) {
-      return const Text('点击刷新');
+      return Text(l10n.t('点击刷新'));
     }
   }
 }

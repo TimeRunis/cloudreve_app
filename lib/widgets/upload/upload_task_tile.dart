@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/upload_task.dart';
 import '../common/truncated_text.dart';
 import '../file/file_icon.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// 上传队列里的一行任务。
 ///
@@ -116,7 +117,7 @@ class UploadTaskTile extends StatelessWidget {
                                 color: context.appColors.textSecondary,
                               ),
                               detailTitle: task.status == UploadStatus.failed
-                                  ? '上传失败详情'
+                                  ? tr('上传失败详情')
                                   : null,
                             ),
                           ),
@@ -147,19 +148,23 @@ class UploadTaskTile extends StatelessWidget {
   String _progressText(UploadTask task) {
     switch (task.status) {
       case UploadStatus.waiting:
-        return '排队中 · ${formatSize(task.uploadedBytes)} / '
-            '${formatSize(task.totalSize)}';
+        return tr('排队中 · {done} / {total}', args: {
+          'done': formatSize(task.uploadedBytes),
+          'total': formatSize(task.totalSize),
+        });
       case UploadStatus.uploading:
         final speed = task.speed > 0 ? '${formatSize(task.speed)}/s' : '--/s';
         return '$speed · ${formatSize(task.uploadedBytes)} / '
             '${formatSize(task.totalSize)}';
       case UploadStatus.paused:
-        return '已暂停 · ${formatSize(task.uploadedBytes)} / '
-            '${formatSize(task.totalSize)}';
+        return tr('已暂停 · {done} / {total}', args: {
+          'done': formatSize(task.uploadedBytes),
+          'total': formatSize(task.totalSize),
+        });
       case UploadStatus.completed:
-        return '已完成 · ${formatSize(task.totalSize)}';
+        return tr('已完成 · {size}', args: {'size': formatSize(task.totalSize)});
       case UploadStatus.failed:
-        return '上传失败：${task.error ?? '未知错误'}';
+        return tr('上传失败：{error}', args: {'error': task.error ?? tr('未知错误')});
     }
   }
 
@@ -217,12 +222,12 @@ class _TrailingAction extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              tooltip: '暂停',
+              tooltip: tr('暂停'),
               icon: Icon(Icons.pause, size: 20, color: color),
               onPressed: onPause,
             ),
             IconButton(
-              tooltip: '取消上传',
+              tooltip: tr('取消上传'),
               icon: Icon(Icons.close, size: 20, color: color),
               onPressed: onRemove,
             ),
@@ -233,12 +238,12 @@ class _TrailingAction extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              tooltip: '继续',
+              tooltip: tr('继续'),
               icon: Icon(Icons.play_arrow, size: 20, color: color),
               onPressed: onResume,
             ),
             IconButton(
-              tooltip: '取消上传',
+              tooltip: tr('取消上传'),
               icon: Icon(Icons.close, size: 20, color: color),
               onPressed: onRemove,
             ),
@@ -249,12 +254,12 @@ class _TrailingAction extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              tooltip: '重试',
+              tooltip: tr('重试'),
               icon: Icon(Icons.refresh, size: 20, color: color),
               onPressed: onResume,
             ),
             IconButton(
-              tooltip: '删除记录',
+              tooltip: tr('删除记录'),
               icon: Icon(Icons.delete_outline, size: 20, color: color),
               onPressed: onRemove,
             ),
@@ -262,7 +267,7 @@ class _TrailingAction extends StatelessWidget {
         );
       case UploadStatus.completed:
         return IconButton(
-          tooltip: '删除记录',
+          tooltip: tr('删除记录'),
           icon: Icon(Icons.delete_outline, size: 20, color: color),
           onPressed: onRemove,
         );

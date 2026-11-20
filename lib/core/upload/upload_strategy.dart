@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../models/upload_task.dart';
 import '../log/app_log.dart';
 import '../network/cloudreve_api.dart';
+import '../i18n/app_localizations.dart';
 
 /// 上传策略接口。
 ///
@@ -146,7 +147,7 @@ class OneDriveUploadStrategy extends UploadStrategy {
   }) async {
     final key = task.callbackSecret ?? '';
     if (key.isEmpty) {
-      throw Exception('OneDrive 上传缺少回调 key');
+      throw Exception(tr('OneDrive 上传缺少回调 key'));
     }
     await api.completeOneDriveUpload(
       sessionId: task.sessionId!,

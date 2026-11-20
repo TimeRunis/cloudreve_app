@@ -12,6 +12,7 @@ import '../../models/file_item.dart';
 import '../network/cloudreve_api.dart';
 import '../storage/app_storage.dart';
 import 'download_notifications.dart';
+import '../i18n/app_localizations.dart';
 
 /// 下载相关设置（由设置页实时提供）。
 class DownloadSettings {
@@ -64,14 +65,12 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
 
-  int get activeCount =>
-      _tasks.where((t) => t.isActive).length;
+  int get activeCount => _tasks.where((t) => t.isActive).length;
 
   int get downloadingCount =>
       _tasks.where((t) => t.status == DownloadStatus.downloading).length;
 
-  int get totalSpeed =>
-      _tasks.fold(0, (sum, t) => sum + t.speed);
+  int get totalSpeed => _tasks.fold(0, (sum, t) => sum + t.speed);
 
   /// 实际使用的下载目录（公共目录不可写时自动回退应用目录）。
   String? get downloadDirPath => _downloadDir?.path;
@@ -122,9 +121,8 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   void _retryFailedOnForeground() {
     if (_disposed) return;
-    final failed = _tasks
-        .where((t) => t.status == DownloadStatus.failed)
-        .toList();
+    final failed =
+        _tasks.where((t) => t.status == DownloadStatus.failed).toList();
     if (failed.isEmpty) return;
     for (final task in failed) {
       _setStatus(task.id, DownloadStatus.waiting, clearError: true);
@@ -136,8 +134,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
   /// 进程保持前台优先级，网络不会被系统挂起。
   void _updateWakeLock() {
     if (_disposed) return;
-    final hasPending =
-        _tasks.any((t) => t.status == DownloadStatus.waiting);
+    final hasPending = _tasks.any((t) => t.status == DownloadStatus.waiting);
     if (_active.isNotEmpty || hasPending) {
       AppWakeLock.acquire('download');
       _notifyForegroundService(start: true);
@@ -149,27 +146,24 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   /// 汇总当前下载总进度，更新 / 启动前台服务通知。
   void _notifyForegroundService({required bool start}) {
-    final downloading = _tasks
-        .where((t) => t.status == DownloadStatus.downloading)
-        .toList();
-    final waiting = _tasks
-        .where((t) => t.status == DownloadStatus.waiting)
-        .toList();
+    final downloading =
+        _tasks.where((t) => t.status == DownloadStatus.downloading).toList();
+    final waiting =
+        _tasks.where((t) => t.status == DownloadStatus.waiting).toList();
     if (downloading.isEmpty && waiting.isEmpty) return;
-    final total =
-        downloading.fold<int>(0, (sum, t) => sum + t.totalSize);
-    final done =
-        downloading.fold<int>(0, (sum, t) => sum + t.downloadedBytes);
-    final percent = total <= 0
-        ? 0
-        : (done / total * 100).round().clamp(0, 100).toInt();
+    final total = downloading.fold<int>(0, (sum, t) => sum + t.totalSize);
+    final done = downloading.fold<int>(0, (sum, t) => sum + t.downloadedBytes);
+    final percent =
+        total <= 0 ? 0 : (done / total * 100).round().clamp(0, 100).toInt();
     final title = downloading.isNotEmpty
-        ? '正在下载 ${downloading.length} 个任务'
-        : '${waiting.length} 个任务排队中';
+        ? tr('正在下载 {count} 个任务', args: {'count': downloading.length})
+        : tr('{count} 个任务排队中', args: {'count': waiting.length});
     final text = total > 0
         ? '${_fmtBytes(done)} / ${_fmtBytes(total)} · $percent%'
-            '${waiting.isNotEmpty ? ' · ${waiting.length} 个排队中' : ''}'
-        : '${waiting.length} 个任务等待开始';
+            '${waiting.isNotEmpty ? tr(' · {count} 个排队中', args: {
+                    'count': waiting.length
+                  }) : ''}'
+        : tr('{count} 个任务等待开始', args: {'count': waiting.length});
     if (start) {
       DownloadNotifications.startService(
           title: title, text: text, percent: percent);
@@ -321,9 +315,8 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   void _schedule() {
     if (_disposed || _active.length >= maxConcurrentTasks) return;
-    final waiting = _tasks
-        .where((t) => t.status == DownloadStatus.waiting)
-        .toList();
+    final waiting =
+        _tasks.where((t) => t.status == DownloadStatus.waiting).toList();
     for (final task in waiting) {
       if (_disposed || _active.length >= maxConcurrentTasks) break;
       _start(task);
@@ -348,7 +341,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
         _setStatus(
           task.id,
           DownloadStatus.failed,
-          error: '下载异常：$e',
+          error: tr('下载异常：{error}', args: {'error': '$e'}),
           downloadedBytes: active.currentBytes,
         );
       }
@@ -394,7 +387,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       }
       final body = resp.data;
       if (body == null) {
-        _setStatus(task.id, DownloadStatus.failed, error: '服务器返回空响应');
+        _setStatus(task.id, DownloadStatus.failed, error: tr('服务器返回空响应'));
         return;
       }
       if (resp.statusCode == 200 && downloaded > 0) {
@@ -416,21 +409,19 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       await sink.close();
       sink = null;
       if (active.token.isCancelled) {
-        _setStatus(task.id, DownloadStatus.paused,
-            downloadedBytes: current);
+        _setStatus(task.id, DownloadStatus.paused, downloadedBytes: current);
         return;
       }
       _updateTaskBytes(task.id, current);
       await part.rename(task.savePath);
-      _setStatus(task.id, DownloadStatus.completed,
-          downloadedBytes: current);
+      _setStatus(task.id, DownloadStatus.completed, downloadedBytes: current);
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) {
         _setStatus(task.id, DownloadStatus.paused,
             downloadedBytes: active.currentBytes);
       } else {
         _setStatus(task.id, DownloadStatus.failed,
-            error: e.message ?? '网络错误',
+            error: e.message ?? tr('网络错误'),
             downloadedBytes: active.currentBytes);
       }
     } catch (e) {
@@ -463,15 +454,14 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
-    final segments =
-        _buildSegments(task, base, total, task.threadCount);
+    final segments = _buildSegments(task, base, total, task.threadCount);
     final state = _MultiState();
-    final results = await Future.wait(segments.map(
-        (seg) => _downloadSegment(task, seg, segments, active, state)));
+    final results = await Future.wait(segments
+        .map((seg) => _downloadSegment(task, seg, segments, active, state)));
     for (var i = 0; i < segments.length && i < results.length; i++) {
       final result = results[i];
       if (!result.ok && !result.cancelled) {
-        segments[i].failure = result.error ?? '分片下载失败';
+        segments[i].failure = result.error ?? tr('分片下载失败');
       }
     }
 
@@ -511,7 +501,9 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       _setStatus(task.id, DownloadStatus.completed, downloadedBytes: merged);
     } else {
       _setStatus(task.id, DownloadStatus.failed,
-          error: '下载不完整（$merged/$total）', downloadedBytes: merged);
+          error: tr('下载不完整（{done}/{total}）',
+              args: {'done': merged, 'total': total}),
+          downloadedBytes: merged);
     }
   }
 
@@ -566,7 +558,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       }
       final body = resp.data;
       if (body == null) {
-        return _SegmentResult(ok: false, error: '服务器返回空响应');
+        return _SegmentResult(ok: false, error: tr('服务器返回空响应'));
       }
       sink = file.openWrite(mode: FileMode.write);
       var bytes = 0;
@@ -585,14 +577,16 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
         return _SegmentResult(ok: false, cancelled: true);
       }
       if (bytes < seg.length) {
-        return _SegmentResult(ok: false, error: '分片 ${seg.index + 1} 下载不完整');
+        return _SegmentResult(
+            ok: false,
+            error: tr('分片 {index} 下载不完整', args: {'index': seg.index + 1}));
       }
       return _SegmentResult(ok: true);
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) {
         return _SegmentResult(ok: false, cancelled: true);
       }
-      return _SegmentResult(ok: false, error: e.message ?? '网络错误');
+      return _SegmentResult(ok: false, error: e.message ?? tr('网络错误'));
     } catch (e) {
       return _SegmentResult(ok: false, error: e.toString());
     } finally {
@@ -607,8 +601,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
           if (seg.failure != null) seg.failure!,
       ];
 
-  Future<void> _mergeSegments(
-      List<_Segment> segments, File part) async {
+  Future<void> _mergeSegments(List<_Segment> segments, File part) async {
     final sink = part.openWrite(mode: FileMode.append);
     try {
       for (final seg in segments) {
@@ -824,7 +817,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
         DownloadNotifications.show(
           id: id,
           title: task.name,
-          text: '排队中',
+          text: tr('排队中'),
           percent: (task.progress * 100).round(),
         );
         break;
@@ -832,20 +825,22 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
         _notifyProgress(task);
         break;
       case DownloadStatus.paused:
-        DownloadNotifications.finish(
-            id: id, title: task.name, text: '已暂停');
+        DownloadNotifications.finish(id: id, title: task.name, text: tr('已暂停'));
         break;
       case DownloadStatus.completed:
         DownloadNotifications.finish(
             id: id,
             title: task.name,
-            text: '下载完成 · ${_fmtBytes(task.totalSize)}');
+            text:
+                tr('下载完成 · {size}', args: {'size': _fmtBytes(task.totalSize)}));
         break;
       case DownloadStatus.failed:
         DownloadNotifications.finish(
             id: id,
             title: task.name,
-            text: '下载失败${task.error == null ? '' : ' · ${task.error}'}');
+            text: task.error == null
+                ? tr('下载失败')
+                : tr('下载失败 · {error}', args: {'error': task.error!}));
         break;
     }
   }

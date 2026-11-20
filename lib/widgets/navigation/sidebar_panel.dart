@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_mode_label.dart';
 import '../../models/file_item.dart';
 import '../../providers/directory_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -115,10 +117,11 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
 
   List<Widget> _buildMenu() {
     final folders = _rootFolders();
+    final l10n = AppLocalizations.of(context);
     return [
       _GroupHeader(
         icon: Icons.home_outlined,
-        label: '我的文件',
+        label: l10n.t('我的文件'),
         expanded: _myFilesExpanded,
         active: true,
         onTap: () => setState(() => _myFilesExpanded = !_myFilesExpanded),
@@ -131,31 +134,31 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
             )),
       _SidebarItem(
           icon: Icons.image_outlined,
-          label: '图片',
+          label: l10n.t('图片'),
           onTap: () => widget.onCategory == null
               ? widget.onPlaceholder()
               : widget.onCategory!(FileCategory.image)),
       _SidebarItem(
           icon: Icons.videocam_outlined,
-          label: '视频',
+          label: l10n.t('视频'),
           onTap: () => widget.onCategory == null
               ? widget.onPlaceholder()
               : widget.onCategory!(FileCategory.video)),
       _SidebarItem(
           icon: Icons.music_note_outlined,
-          label: '音乐',
+          label: l10n.t('音乐'),
           onTap: () => widget.onCategory == null
               ? widget.onPlaceholder()
               : widget.onCategory!(FileCategory.music)),
       _SidebarItem(
           icon: Icons.description_outlined,
-          label: '文档',
+          label: l10n.t('文档'),
           onTap: () => widget.onCategory == null
               ? widget.onPlaceholder()
               : widget.onCategory!(FileCategory.doc)),
       _GroupHeader(
         icon: Icons.people_outline,
-        label: '与我共享',
+        label: l10n.t('与我共享'),
         expanded: _sharedExpanded,
         active: widget.sharedWithMeActive,
         onTap: () {
@@ -172,37 +175,34 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
             )),
       _SidebarItem(
           icon: Icons.delete_outline,
-          label: '回收站',
+          label: l10n.t('回收站'),
           onTap: widget.onTrash ?? widget.onPlaceholder),
       _SidebarItem(
           icon: Icons.share_outlined,
-          label: '我的分享',
+          label: l10n.t('我的分享'),
           onTap: widget.onMyShares ?? widget.onPlaceholder),
       _SidebarItem(
           icon: Icons.download_outlined,
-          label: '下载任务',
+          label: l10n.t('下载任务'),
           onTap: widget.onDownloads ?? widget.onPlaceholder),
       Divider(height: 1, color: context.appColors.border),
       _SidebarItem(
           icon: Icons.brightness_6_outlined,
-          label: '主题（${_themeLabel(ref.watch(settingsProvider).themeMode)}）',
+          label: l10n.t(
+            '主题（{mode}）',
+            args: {
+              'mode': themeModeLabel(
+                ref.watch(settingsProvider).themeMode,
+                l10n,
+              ),
+            },
+          ),
           onTap: widget.onCycleTheme),
       _SidebarItem(
           icon: Icons.settings_outlined,
-          label: '设置',
+          label: l10n.t('设置'),
           onTap: widget.onSettings ?? widget.onPlaceholder),
     ];
-  }
-
-  String _themeLabel(String mode) {
-    switch (mode) {
-      case 'light':
-        return '亮色';
-      case 'dark':
-        return '暗色';
-      default:
-        return '跟随系统';
-    }
   }
 
   List<FileItem> _rootFolders() {
@@ -520,6 +520,7 @@ class _SidebarStorage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final capacity = ref.watch(capacityProvider).valueOrNull;
+    final l10n = AppLocalizations.of(context);
     final used = capacity?.used ?? 0;
     final total = capacity?.total ?? 0;
     final percent = total > 0 ? (used / total).clamp(0.0, 1.0) : 0.0;
@@ -538,7 +539,7 @@ class _SidebarStorage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('存储空间',
+            Text(l10n.t('存储空间'),
                 style: TextStyle(
                     fontSize: 14, color: context.appColors.textPrimary)),
             const SizedBox(height: 6),

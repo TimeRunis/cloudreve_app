@@ -1,3 +1,5 @@
+import '../core/i18n/app_localizations.dart';
+
 /// 下载任务状态。
 enum DownloadStatus { waiting, downloading, paused, completed, failed }
 
@@ -57,16 +59,15 @@ class DownloadTask {
       : (downloadedBytes / totalSize).clamp(0.0, 1.0).toDouble();
 
   String get statusLabel => switch (status) {
-        DownloadStatus.waiting => '排队中',
-        DownloadStatus.downloading => '下载中',
-        DownloadStatus.paused => '已暂停',
-        DownloadStatus.completed => '已完成',
-        DownloadStatus.failed => '下载失败',
+        DownloadStatus.waiting => tr('排队中'),
+        DownloadStatus.downloading => tr('下载中'),
+        DownloadStatus.paused => tr('已暂停'),
+        DownloadStatus.completed => tr('已完成'),
+        DownloadStatus.failed => tr('下载失败'),
       };
 
   bool get isActive =>
-      status == DownloadStatus.downloading ||
-      status == DownloadStatus.waiting;
+      status == DownloadStatus.downloading || status == DownloadStatus.waiting;
 
   DownloadTask copyWith({
     DownloadStatus? status,
@@ -119,9 +120,8 @@ class DownloadTask {
         speed: 0,
         status: downloadStatusFromString(json['status'] as String? ?? ''),
         threadCount: (json['thread_count'] as num?)?.toInt() ?? 1,
-        createdAt:
-            DateTime.tryParse(json['created_at'] as String? ?? '') ??
-                DateTime.now(),
+        createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
+            DateTime.now(),
         savePath: json['save_path'] as String? ?? '',
         error: json['error'] as String?,
       );

@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';
 
+import '../core/i18n/app_localizations.dart';
 import '../core/log/app_log.dart';
 import '../core/theme/app_colors.dart';
 import '../widgets/common/section_title.dart';
 import '../widgets/common/settings_card.dart';
+import '../widgets/settings/language_setting_row.dart';
 import '../widgets/settings/theme_setting_row.dart';
 import '../widgets/settings/update_settings_row.dart';
 import 'about_page.dart';
@@ -17,7 +19,7 @@ import 'site_list_page.dart';
 /// 统一设置入口（悬浮侧边栏 →「设置」）。
 ///
 /// 只做聚合，不改变任何既有设置逻辑：
-/// - 外观：整行点击弹出主题悬浮窗；
+/// - 外观：整行点击弹出主题 / 语言悬浮窗；
 /// - 下载：跳转已有的「下载设置」页 [SettingsPage]；
 /// - 日志：把 [AppLogger] 记录的日志导出成文件。
 class SettingsHubPage extends ConsumerWidget {
@@ -25,6 +27,7 @@ class SettingsHubPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: context.appColors.contentBg,
       appBar: AppBar(
@@ -32,28 +35,30 @@ class SettingsHubPage extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          tooltip: '返回',
+          tooltip: l10n.t('返回'),
           icon: Icon(Icons.arrow_back, color: context.appColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          '设置',
+          l10n.t('设置'),
           style: TextStyle(color: context.appColors.textPrimary),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const SectionTitle.settings('外观'),
-          const SettingsCard(children: [ThemeSettingRow()]),
+          SectionTitle.settings(l10n.t('外观')),
+          const SettingsCard(
+            children: [ThemeSettingRow(), LanguageSettingRow()],
+          ),
           const SizedBox(height: 20),
-          const SectionTitle.settings('站点'),
+          SectionTitle.settings(l10n.t('站点')),
           SettingsCard(
             children: [
               SettingsTile(
                 icon: Icons.dns_outlined,
-                title: '管理站点',
-                subtitle: '添加、切换、编辑或删除站点',
+                title: l10n.t('管理站点'),
+                subtitle: l10n.t('添加、切换、编辑或删除站点'),
                 trailing: const SettingsChevron(),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SiteListPage()),
@@ -62,13 +67,13 @@ class SettingsHubPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          const SectionTitle.settings('下载'),
+          SectionTitle.settings(l10n.t('下载')),
           SettingsCard(
             children: [
               SettingsTile(
                 icon: Icons.download_outlined,
-                title: '下载设置',
-                subtitle: '多线程下载、下载线程数',
+                title: l10n.t('下载设置'),
+                subtitle: l10n.t('多线程下载、下载线程数'),
                 trailing: const SettingsChevron(),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SettingsPage()),
@@ -77,20 +82,20 @@ class SettingsHubPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          const SectionTitle.settings('日志'),
+          SectionTitle.settings(l10n.t('日志')),
           SettingsCard(
             children: [
               SettingsTile(
                 icon: Icons.description_outlined,
-                title: '导出日志',
-                subtitle: '保存到本地文件，便于反馈问题',
+                title: l10n.t('导出日志'),
+                subtitle: l10n.t('保存到本地文件，便于反馈问题'),
                 trailing: const SettingsChevron(),
                 onTap: () => _exportLogs(context),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const SectionTitle.settings('更新'),
+          SectionTitle.settings(l10n.t('更新')),
           SettingsCard(
             children: [
               UpdateCheckRow(onOpenDownloads: () => _openDownloads(context)),
@@ -98,13 +103,13 @@ class SettingsHubPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          const SectionTitle.settings('关于'),
+          SectionTitle.settings(l10n.t('关于')),
           SettingsCard(
             children: [
               SettingsTile(
                 icon: Icons.info_outline,
-                title: '关于 Cloudreve',
-                subtitle: '版本、开源仓库与致谢',
+                title: l10n.t('关于 Cloudreve'),
+                subtitle: l10n.t('版本、开源仓库与致谢'),
                 trailing: const SettingsChevron(),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const AboutPage()),
@@ -126,66 +131,75 @@ class SettingsHubPage extends ConsumerWidget {
 
   /// 导出日志并把文件路径回显给用户。
   Future<void> _exportLogs(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final String path;
     try {
       final file = await AppLogger.export();
       path = file.path;
     } catch (e, stackTrace) {
-      AppLogger.log.e('[Settings] 导出日志失败', error: e, stackTrace: stackTrace);
-      messenger.showSnackBar(SnackBar(content: Text('导出失败：$e')));
+      AppLogger.log
+          .e(tr('[Settings] 导出日志失败'), error: e, stackTrace: stackTrace);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.t('导出失败：{error}', args: {'error': '$e'})),
+        ),
+      );
       return;
     }
     if (!context.mounted) return;
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('日志已导出'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '可直接打开，或复制路径后自行处理',
-              style: TextStyle(
-                fontSize: 12,
-                color: dialogContext.appColors.textMuted,
+      builder: (dialogContext) {
+        final dialogL10n = AppLocalizations.of(dialogContext);
+        return AlertDialog(
+          title: Text(dialogL10n.t('日志已导出')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                dialogL10n.t('可直接打开，或复制路径后自行处理'),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: dialogContext.appColors.textMuted,
+                ),
               ),
+              const SizedBox(height: 8),
+              SelectableText(
+                path,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: dialogContext.appColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton.icon(
+              icon: const Icon(Icons.copy_outlined, size: 18),
+              label: Text(dialogL10n.t('复制路径')),
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: path));
+                if (!dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text(dialogL10n.t('日志路径已复制'))),
+                );
+              },
             ),
-            const SizedBox(height: 8),
-            SelectableText(
-              path,
-              style: TextStyle(
-                fontSize: 12,
-                color: dialogContext.appColors.textMuted,
-              ),
+            TextButton(
+              onPressed: () => OpenFilex.open(path),
+              child: Text(dialogL10n.t('打开文件')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(dialogL10n.t('关闭')),
             ),
           ],
-        ),
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.copy_outlined, size: 18),
-            label: const Text('复制路径'),
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: path));
-              if (!dialogContext.mounted) return;
-              Navigator.of(dialogContext).pop();
-              messenger.showSnackBar(
-                const SnackBar(content: Text('日志路径已复制')),
-              );
-            },
-          ),
-          TextButton(
-            onPressed: () => OpenFilex.open(path),
-            child: const Text('打开文件'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
