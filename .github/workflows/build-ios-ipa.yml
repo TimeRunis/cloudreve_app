@@ -1,0 +1,99 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      FLUTTER_VERSION: '3.24.5'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Show tool versions
+        run: |
+          flutter --version
+          xcodebuild -version
+          pod --version
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package IPA
+        id: package
+        run: |
+          set -euo pipefail
+
+          VERSION="$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)"
+          APP="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP" ]; then
+            echo "::error::Runner.app not found at $APP"
+            ls -la build/ios/iphoneos || true
+            exit 1
+          fi
+
+          mkdir -p build/ipa/Payload
+          rm -rf build/ipa/Payload/Runner.app
+          cp -R "$APP" build/ipa/Payload/Runner.app
+
+          cd build/ipa
+          IPA="cloudreve-${VERSION}-unsigned.ipa"
+          rm -f "$IPA" "$IPA.sha256"
+          zip -qry "$IPA" Payload
+          shasum -a 256 "$IPA" | awk '{print $1}' > "$IPA.sha256"
+
+          echo "ipa=build/ipa/$IPA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "### iOS IPA"
+            echo ""
+            echo "- Version: \`$VERSION\`"
+            echo "- File: \`$IPA\`"
+            echo "- SHA256: \`$(cat "$IPA.sha256")\`"
+            echo "- Signing: unsigned (jailbreak / TrollStore)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-ipa
+          path: |
+            build/ipa/*.ipa
+            build/ipa/*.sha256
+          if-no-files-found: error
+
+      - name: Attach IPA to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "$GITHUB_REF_NAME" build/ipa/*.ipa build/ipa/*.sha256 --clobber
