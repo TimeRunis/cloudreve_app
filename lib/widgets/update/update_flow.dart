@@ -106,8 +106,13 @@ class UpdateFlow {
     final task = await ref.read(updateProvider.notifier).download(release);
     if (!context.mounted) return;
     if (task == null) {
-      _toast(context, tr('无法开始下载，请在发布页手动下载'));
-      await _openReleasePage(context, release);
+      // 不自动跳发布页：这里只提示，用户点「打开发布页」再跳转。
+      _toastWithAction(
+        context,
+        tr('无法开始下载，请在发布页手动下载'),
+        tr('打开发布页'),
+        () => _openReleasePage(context, release),
+      );
       return;
     }
     if (task.status == DownloadStatus.completed) {
@@ -161,5 +166,19 @@ class UpdateFlow {
   static void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  static void _toastWithAction(
+    BuildContext context,
+    String message,
+    String actionLabel,
+    VoidCallback onAction,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: SnackBarAction(label: actionLabel, onPressed: onAction),
+      ),
+    );
   }
 }

@@ -93,16 +93,24 @@ class UpdateService {
   /// Atom 源没有安装包信息：按命名约定探测体积（同时确认文件存在）。
   Future<AppRelease> _resolveAsset(AppRelease release) async {
     if (release.downloadUrl != null) return release;
-    for (final name in _assetNameCandidates(release.tag)) {
-      final url = 'https://github.com/$repo/releases/download/'
-          '${Uri.encodeComponent(release.tag)}/$name';
+    final candidates = _assetNameCandidates(release.tag);
+    for (final name in candidates) {
+      final url = _assetUrl(release.tag, name);
       final size = await _probeSize(url);
       if (size != null) {
         return release.copyWith(downloadUrl: url, size: size);
       }
     }
-    return release;
+    // 探测失败（部分网络环境不支持 HEAD）时仍按约定给出安装包地址，
+    // 保证手动检查和启动检查都能走应用内下载；真下载失败会提示打开发布页。
+    return release.copyWith(
+      downloadUrl: _assetUrl(release.tag, candidates.first),
+    );
   }
+
+  String _assetUrl(String tag, String name) =>
+      'https://github.com/$repo/releases/download/'
+      '${Uri.encodeComponent(tag)}/$name';
 
   List<String> _assetNameCandidates(String tag) {
     final names = <String>['cloudreve-$tag.apk'];
@@ -165,7 +173,7 @@ class UpdateService {
         tag: tag,
         version: version,
         title: rawTitle.isEmpty ? version.raw : rawTitle,
-        notes: plainTextFromMarkdown(item['body'] as String? ?? ''),
+        notes: normalizeNotes(item['body'] as String? ?? ''),
         pageUrl: item['html_url'] as String? ??
             'https://github.com/$defaultRepo/releases/tag/$tag',
         downloadUrl: downloadUrl,
@@ -226,7 +234,7 @@ class UpdateService {
         tag: tag,
         version: version,
         title: title.isEmpty ? version.raw : title,
-        notes: plainTextFromHtml(contentMatch?.group(1) ?? ''),
+        notes: markdownFromHtml(contentMatch?.group(1) ?? ''),
         pageUrl: 'https://github.com/$defaultRepo/releases/tag/'
             '${Uri.encodeComponent(tag)}',
         publishedAt: DateTime.tryParse(updatedMatch?.group(1) ?? '')?.toLocal(),
@@ -236,44 +244,70 @@ class UpdateService {
     return releases;
   }
 
-  /// Markdown 更新说明 → 纯文本（去掉标题符号、列表符号、链接语法等）。
+  /// 规范化 Markdown 更新说明：统一换行、去行尾空白、压缩空行、限制长度。
   @visibleForTesting
-  static String plainTextFromMarkdown(String markdown) {
+  static String normalizeNotes(String markdown) {
     if (markdown.trim().isEmpty) return '';
-    var text = markdown;
-    text = text.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
-    text = text.replaceAll(RegExp(r'!\[[^\]]*\]\([^)]*\)'), '');
-    text = text.replaceAllMapped(
-        RegExp(r'\[([^\]]+)\]\(([^)\s]+)[^)]*\)'), (match) => match[1]!);
-    text = text.replaceAll(RegExp(r'^\s{0,3}#{1,6}\s+', multiLine: true), '');
-    text = text.replaceAll(
-        RegExp(r'^\s{0,3}[-*+]\s+\[[ xX]\]\s+', multiLine: true), '· ');
-    text = text.replaceAll(RegExp(r'^\s{0,3}[-*+]\s+', multiLine: true), '· ');
-    text = text.replaceAll(RegExp(r'^\s{0,3}>\s?', multiLine: true), '');
-    text = text.replaceAll(
-        RegExp(r'^\s{0,3}(?:[-*_]\s*){3,}$', multiLine: true), '');
-    text = text.replaceAll(RegExp(r'`{1,3}'), '');
-    text = text.replaceAllMapped(RegExp(r'\*\*(.+?)\*\*'), (m) => m[1]!);
-    text = text.replaceAllMapped(RegExp(r'__(.+?)__'), (m) => m[1]!);
-    text = text.replaceAllMapped(RegExp(r'~~(.+?)~~'), (m) => m[1]!);
-    return _tidy(decodeHtmlEntities(text));
+    var text = markdown
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '')
+        .replaceAll(RegExp(r'[ \t]+$', multiLine: true), '')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+    if (text.length > maxNotesLength) {
+      final cut = text.substring(0, maxNotesLength);
+      final lastNewline = cut.lastIndexOf('\n');
+      text =
+          '${(lastNewline > 0 ? cut.substring(0, lastNewline) : cut).trimRight()}…';
+    }
+    return text;
   }
 
-  /// GitHub 发布说明（HTML）→ 纯文本。
+  /// GitHub 发布说明（HTML）→ Markdown。
   ///
-  /// Atom 里的 HTML 是转义过的（`&lt;p&gt;`），所以先解实体再去标签。
+  /// Atom 里的 HTML 是转义过的（`&lt;p&gt;`），所以先解实体再转换；
+  /// 常见块级 / 行内标签尽量还原成 Markdown，交给界面统一渲染。
   @visibleForTesting
-  static String plainTextFromHtml(String html) {
+  static String markdownFromHtml(String html) {
     if (html.trim().isEmpty) return '';
     var text = decodeHtmlEntities(html);
+    // 行内样式先转，避免块级替换后丢失。
+    text = text.replaceAllMapped(
+      RegExp(r'<(?:strong|b)[^>]*>(.*?)</(?:strong|b)>',
+          dotAll: true, caseSensitive: false),
+      (m) => '**${m[1]!.trim()}**',
+    );
+    text = text.replaceAllMapped(
+      RegExp(r'<(?:em|i)[^>]*>(.*?)</(?:em|i)>',
+          dotAll: true, caseSensitive: false),
+      (m) => '*${m[1]!.trim()}*',
+    );
+    text = text.replaceAllMapped(
+      RegExp(r'<code[^>]*>(.*?)</code>', dotAll: true, caseSensitive: false),
+      (m) => '`${m[1]!.trim()}`',
+    );
+    text = text.replaceAllMapped(
+      RegExp(r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
+          dotAll: true, caseSensitive: false),
+      (m) => '[${m[2]!.trim()}](${m[1]!})',
+    );
+    text = text.replaceAllMapped(
+      RegExp(r'<h([1-6])[^>]*>(.*?)</h\1>', dotAll: true, caseSensitive: false),
+      (m) => '\n${'#' * int.parse(m[1]!)} ${m[2]!.trim()}\n',
+    );
+    text = text.replaceAllMapped(
+      RegExp(r'<li[^>]*>(.*?)</li>', dotAll: true, caseSensitive: false),
+      (m) => '\n- ${m[1]!.trim()}\n',
+    );
     text = text.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
     text = text.replaceAll(
-      RegExp(r'</(?:p|div|li|h[1-6]|tr|blockquote)>', caseSensitive: false),
+      RegExp(r'</?(?:p|div|ul|ol|tr|blockquote|section|article)[^>]*>',
+          caseSensitive: false),
       '\n',
     );
-    text = text.replaceAll(RegExp(r'<li[^>]*>', caseSensitive: false), '· ');
     text = text.replaceAll(RegExp(r'<[^>]+>'), '');
-    return _tidy(text);
+    return normalizeNotes(text);
   }
 
   /// 解码常见 HTML 实体（`&amp;` 放最后，避免二次解码）。
@@ -295,27 +329,5 @@ class UpdateService {
     result = result.replaceAllMapped(RegExp(r'&#[xX]([0-9a-fA-F]+);'),
         (m) => String.fromCharCode(int.parse(m[1]!, radix: 16)));
     return result.replaceAll('&amp;', '&');
-  }
-
-  /// 统一收尾：去行尾空白、压缩连续空行、限制长度。
-  static String _tidy(String text) {
-    final lines = text.split('\n');
-    final buffer = StringBuffer();
-    var blankRun = 0;
-    for (final line in lines) {
-      final trimmedRight = line.replaceAll(RegExp(r'[ \t]+$'), '');
-      if (trimmedRight.trim().isEmpty) {
-        blankRun++;
-        if (blankRun > 1) continue;
-      } else {
-        blankRun = 0;
-      }
-      buffer.writeln(trimmedRight);
-    }
-    var result = buffer.toString().trim();
-    if (result.length > maxNotesLength) {
-      result = '${result.substring(0, maxNotesLength)}…';
-    }
-    return result;
   }
 }

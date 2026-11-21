@@ -4,6 +4,7 @@ import '../../core/format/date_time.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/app_release.dart';
 import '../file/file_icon.dart';
+import 'update_notes.dart';
 import '../../core/i18n/app_localizations.dart';
 
 /// 更新弹窗里用户选择的动作。
@@ -236,14 +237,16 @@ class _UpdateDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: SingleChildScrollView(
-              child: Text(
-                release.notes.isEmpty ? tr('该版本没有提供更新说明。') : release.notes,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.6,
-                  color: colors.textSecondary,
-                ),
-              ),
+              child: release.notes.isEmpty
+                  ? Text(
+                      tr('该版本没有提供更新说明。'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.6,
+                        color: colors.textSecondary,
+                      ),
+                    )
+                  : UpdateNotesView(markdown: release.notes),
             ),
           ),
           if (!_canDownload) ...[
@@ -254,15 +257,24 @@ class _UpdateDialog extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
+              if (_canDownload)
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(
+                    UpdateDialogAction.openPage,
+                  ),
+                  child: Text(tr('打开发布页')),
+                ),
               TextButton(
                 onPressed: () =>
                     Navigator.of(context).pop(UpdateDialogAction.later),
                 child: Text(tr('以后再说')),
               ),
-              const SizedBox(width: 4),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: primary),
                 icon: Icon(

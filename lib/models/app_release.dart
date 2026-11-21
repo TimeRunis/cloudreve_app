@@ -119,7 +119,7 @@ class AppRelease {
   /// 发布标题（没填标题时 GitHub 用 tag 作为标题）。
   final String title;
 
-  /// 更新说明（已转成纯文本，便于直接展示）。
+  /// 更新说明（Markdown，来自 GitHub Release 的 body）。
   final String notes;
 
   /// 发布页地址。
