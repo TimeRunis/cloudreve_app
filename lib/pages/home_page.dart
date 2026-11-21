@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/i18n/app_localizations.dart';
+import '../core/network/api_exception.dart';
 import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
@@ -16,6 +17,7 @@ import '../providers/settings_provider.dart';
 import '../providers/upload_provider.dart';
 import '../widgets/common/app_bar_icon_button.dart';
 import '../widgets/common/error_view.dart';
+import '../widgets/common/name_input_dialog.dart';
 import '../widgets/common/selection_actions.dart';
 import '../widgets/common/user_avatar.dart';
 import '../widgets/file/file_icon.dart';
@@ -460,11 +462,53 @@ class _HomePageState extends ConsumerState<HomePage> {
       onAction: (action) {
         if (action == AddMenuAction.uploadFile) {
           _pickAndUpload();
+        } else if (action == AddMenuAction.createFolder) {
+          _createFolder();
         } else {
           _toast(tr('功能暂未实现'));
         }
       },
     );
+  }
+
+  /// 在当前普通目录中新建文件夹。
+  Future<void> _createFolder() async {
+    if (_category != null || _isSearchActive || _sharedWithMe) {
+      _toast(tr('请在普通文件夹中新建'));
+      return;
+    }
+    final name = await showNameInputDialog(
+      context,
+      title: tr('创建文件夹'),
+      label: tr('文件夹名称 *'),
+      initialValue: tr('新建文件夹'),
+    );
+    if (name == null || !mounted) return;
+
+    try {
+      await ref.read(apiProvider).createFolder(
+            parentPath: _path,
+            name: name,
+          );
+      if (!mounted) return;
+      if (_path == '/') {
+        ref.invalidate(directoryProvider(const DirectoryQuery('/')));
+      }
+      _refresh();
+      _toast(tr('已创建文件夹'));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.code == ApiException.objectExists || e.code == 409) {
+        _toast(tr('同名文件夹已存在'));
+      } else {
+        _toast(tr('创建文件夹失败：{error}', args: {'error': e.message}));
+      }
+    } catch (e) {
+      print('[HomePage] 创建文件夹失败: $e');
+      if (mounted) {
+        _toast(tr('创建文件夹失败：{error}', args: {'error': '$e'}));
+      }
+    }
   }
 
   void _openSearch() {
@@ -523,10 +567,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     } else {
       kind = FileOperationKind.file;
     }
+    final operations = [...fileOperationsFor(kind)];
+    if (items.isNotEmpty && kind != FileOperationKind.multiple) {
+      operations.insert(
+        kind == FileOperationKind.file ? 1 : 0,
+        FileOperation.rename,
+      );
+    }
     showFileOperations(
       context,
       anchorKey: _selectionMoreKey,
-      operations: fileOperationsFor(kind),
+      operations: operations,
       onAction: _handleFileOperation,
     );
   }
@@ -556,6 +607,10 @@ class _HomePageState extends ConsumerState<HomePage> {
       _shareSingleItem();
       return;
     }
+    if (op == FileOperation.rename) {
+      _renameSelected();
+      return;
+    }
     if (op == FileOperation.selectAll) {
       _browseCtrl.selectAll(_currentFiles());
       return;
@@ -566,7 +621,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     final labels = {
       FileOperation.open: tr('打开'),
-      FileOperation.rename: tr('重命名'),
       FileOperation.copy: tr('复制'),
       FileOperation.directLink: tr('获取直链'),
       FileOperation.tag: tr('标签'),
@@ -575,6 +629,53 @@ class _HomePageState extends ConsumerState<HomePage> {
       FileOperation.details: tr('详细信息'),
     };
     _toast(tr('功能暂未实现：{action}', args: {'action': labels[op] ?? ''}));
+  }
+
+  /// 重命名单个选中的文件或文件夹。
+  Future<void> _renameSelected() async {
+    final selected = _selectedItems();
+    if (selected.length != 1) {
+      _toast(tr('请选择一个文件或文件夹'));
+      return;
+    }
+    final target = selected.first;
+    final name = await showNameInputDialog(
+      context,
+      title: tr('重命名'),
+      label: tr('名称 *'),
+      initialValue: target.name,
+    );
+    if (name == null || !mounted) return;
+    if (name == target.name) return;
+
+    try {
+      await ref.read(apiProvider).renameFile(
+            uri: target.path,
+            newName: name,
+          );
+      if (!mounted) return;
+      final relative = target.relativePath;
+      final isRootLevel =
+          relative.startsWith('/') && !relative.substring(1).contains('/');
+      if (isRootLevel) {
+        ref.invalidate(directoryProvider(const DirectoryQuery('/')));
+      }
+      _clearSelection();
+      _refresh();
+      _toast(tr('已重命名'));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.code == ApiException.objectExists || e.code == 409) {
+        _toast(tr('同名文件或文件夹已存在'));
+      } else {
+        _toast(tr('重命名失败：{error}', args: {'error': e.message}));
+      }
+    } catch (e) {
+      print('[HomePage] 重命名失败: $e');
+      if (mounted) {
+        _toast(tr('重命名失败：{error}', args: {'error': '$e'}));
+      }
+    }
   }
 
   /// 对当前选中的单个文件/文件夹（或无选中时的当前文件夹）发起分享。

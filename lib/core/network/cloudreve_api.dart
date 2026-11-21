@@ -409,6 +409,38 @@ class CloudreveApi {
     return DirectoryListing.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 在 [parentPath] 下新建文件夹，返回创建结果。
+  Future<FileItem> createFolder({
+    required String parentPath,
+    required String name,
+  }) async {
+    final parent = _folderUri(parentPath);
+    final data = await _post('file/create', data: {
+      'uri': '$parent/${Uri.encodeComponent(name.trim())}',
+      'type': 'folder',
+      'err_on_conflict': true,
+    });
+    if (data is Map) {
+      return FileItem.fromJson(data.cast<String, dynamic>());
+    }
+    throw const ApiException(-1, '');
+  }
+
+  /// 重命名文件 / 文件夹，返回更新后的对象。
+  Future<FileItem> renameFile({
+    required String uri,
+    required String newName,
+  }) async {
+    final data = await _post('file/rename', data: {
+      'uri': uri,
+      'new_name': newName.trim(),
+    });
+    if (data is Map) {
+      return FileItem.fromJson(data.cast<String, dynamic>());
+    }
+    throw const ApiException(-1, '');
+  }
+
   /// 在「我的文件」的 [destinationPath] 目录下创建分享快捷方式。
   ///
   /// [destinationPath] 为空或 `/` 时保存到根目录；也可以传文件对象自带的

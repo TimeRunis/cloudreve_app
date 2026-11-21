@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_popup.dart';
 import 'popup_item.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/theme/app_colors.dart';
 
 /// 新建/上传菜单动作。
 enum AddMenuAction {
@@ -33,6 +34,11 @@ class AddMenuPopup extends StatelessWidget {
                 icon: Icons.upload_file_outlined,
                 label: tr('上传文件'),
                 onTap: () => onAction(AddMenuAction.uploadFile)),
+            Divider(height: 1, color: context.appColors.border),
+            PopupItem(
+                icon: Icons.create_new_folder_outlined,
+                label: tr('新建文件夹'),
+                onTap: () => onAction(AddMenuAction.createFolder)),
           ],
         ),
       ),
