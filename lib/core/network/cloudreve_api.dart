@@ -409,19 +409,24 @@ class CloudreveApi {
     return DirectoryListing.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 在「我的文件」根目录创建分享快捷方式。
+  /// 在「我的文件」的 [destinationPath] 目录下创建分享快捷方式。
+  ///
+  /// [destinationPath] 为空或 `/` 时保存到根目录；也可以传文件对象自带的
+  /// `cloudreve://my/...` 完整 URI。
   ///
   /// Cloudreve 用一个带 `sys:shared_redirect` 元数据的符号文件夹表示快捷方式；
   /// `sys:shared_owner` 用于在文件图标上显示分享者头像。
   Future<FileItem> createShareShortcut({
     required String name,
     required String redirectUri,
+    String? destinationPath,
     String? ownerId,
     bool isFolder = true,
   }) async {
     final cleanName = name.trim();
+    final folder = _folderUri(destinationPath);
     final data = await _post('file/create', data: {
-      'uri': 'cloudreve://my/${Uri.encodeComponent(cleanName)}',
+      'uri': '$folder/${Uri.encodeComponent(cleanName)}',
       'type': isFolder ? 'folder' : 'file',
       'metadata': {
         'sys:shared_redirect': redirectUri,
@@ -434,6 +439,17 @@ class CloudreveApi {
       return FileItem.fromJson(data.cast<String, dynamic>());
     }
     throw const ApiException(-1, '');
+  }
+
+  /// 目录路径 → 目录 URI，并去掉末尾斜杠方便拼接子项。
+  String _folderUri(String? path) {
+    var p = (path ?? '/').trim();
+    if (p.isEmpty) p = '/';
+    var uri = p.startsWith('cloudreve://') ? p : pathToUri(p);
+    while (uri.endsWith('/')) {
+      uri = uri.substring(0, uri.length - 1);
+    }
+    return uri;
   }
 
   /// 获取缩略图直链；返回 data.url，失败返回 null。

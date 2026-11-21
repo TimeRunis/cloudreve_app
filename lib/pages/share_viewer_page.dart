@@ -21,6 +21,7 @@ import '../widgets/file/file_icon.dart';
 import '../widgets/file/view_panel.dart';
 import '../widgets/file_browser/file_browser_view.dart';
 import '../widgets/navigation/breadcrumb.dart';
+import '../widgets/picker/cloud_folder_picker.dart';
 import '../widgets/popup/app_popup.dart';
 import '../widgets/popup/file_operations_popup.dart';
 import '../widgets/popup/popup_item.dart';
@@ -340,9 +341,21 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
     }
 
     final api = ref.read(apiProvider);
+    setState(() => _savingShortcut = true);
+    final selection = await showCloudFolderPicker(
+      context,
+      title: tr('创建快捷方式'),
+      confirmLabel: tr('确定'),
+      api: api,
+    );
+    if (!mounted) return;
+    if (selection == null) {
+      setState(() => _savingShortcut = false);
+      return;
+    }
+
     final redirect = shareRootUri(widget.shareId, password: _password);
     final baseName = info.name.trim().isEmpty ? tr('分享') : info.name.trim();
-    setState(() => _savingShortcut = true);
     try {
       var saved = false;
       for (var i = 0; i < 20 && !saved; i++) {
@@ -351,6 +364,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           await api.createShareShortcut(
             name: name,
             redirectUri: redirect,
+            destinationPath: selection.path,
             ownerId: info.ownerId,
             isFolder: info.isFolder,
           );
@@ -367,7 +381,15 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
       if (!mounted) return;
       ref.invalidate(sharedWithMeProvider);
       ref.invalidate(directoryProvider(const DirectoryQuery('/')));
-      _toast(tr('已保存到「我的文件」'));
+      final folder = selection.folder;
+      if (folder != null) {
+        ref.invalidate(
+          directoryProvider(DirectoryQuery(folder.relativePath)),
+        );
+      }
+      final targetName =
+          selection.name.trim().isEmpty ? tr('我的文件') : selection.name.trim();
+      _toast(tr('已保存到「{name}」', args: {'name': targetName}));
     } catch (e) {
       if (!mounted) return;
       final message = e is ApiException ? e.message : '$e';

@@ -7,6 +7,7 @@ import '../../core/theme/theme_mode_label.dart';
 import '../../models/file_item.dart';
 import '../../providers/directory_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../common/cloud_folder_tree.dart';
 import '../common/site_logo.dart';
 import '../file/file_icon.dart';
 import '../file/file_item_icon.dart';
@@ -64,6 +65,9 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
   /// 「与我共享」分组是否展开（只列一级分享快捷方式，不展开分享内部目录）。
   bool _sharedExpanded = false;
 
+  /// 已展开的文件夹 path；由公共目录树回调维护。
+  final Set<String> _expandedFolders = {};
+
   @override
   void initState() {
     super.initState();
@@ -116,7 +120,6 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
   }
 
   List<Widget> _buildMenu() {
-    final folders = _rootFolders();
     final l10n = AppLocalizations.of(context);
     return [
       _GroupHeader(
@@ -126,12 +129,7 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
         active: true,
         onTap: () => setState(() => _myFilesExpanded = !_myFilesExpanded),
       ),
-      if (_myFilesExpanded)
-        ...folders.map((f) => _FolderNode(
-              folder: f,
-              depth: 1,
-              onNavigate: widget.onNavigate,
-            )),
+      if (_myFilesExpanded) _buildFolderTree(),
       _SidebarItem(
           icon: Icons.image_outlined,
           label: l10n.t('图片'),
@@ -205,11 +203,91 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
     ];
   }
 
-  List<FileItem> _rootFolders() {
-    final listing =
-        ref.watch(directoryProvider(const DirectoryQuery('/'))).valueOrNull;
-    if (listing == null) return const [];
-    return listing.files.where((f) => f.isFolder).toList();
+  /// 「我的文件」下的目录树：复用公共 [CloudFolderTree]，仅提供数据和回调。
+  Widget _buildFolderTree() {
+    return CloudFolderTree(
+      entries: _folderEntries(),
+      onSelect: _openFolder,
+      onToggle: _toggleFolder,
+      onRetry: _retryFolder,
+      dense: true,
+      scrollable: false,
+      padding: EdgeInsets.zero,
+    );
+  }
+
+  List<CloudFolderTreeEntry> _folderEntries() {
+    final entries = <CloudFolderTreeEntry>[];
+    _appendFolderEntries(
+      entries,
+      ref.watch(directoryProvider(const DirectoryQuery('/'))),
+      queryPath: '/',
+      depth: 1,
+    );
+    return entries;
+  }
+
+  void _appendFolderEntries(
+    List<CloudFolderTreeEntry> entries,
+    AsyncValue<DirectoryListing> listing, {
+    required String queryPath,
+    required int depth,
+  }) {
+    if (listing.hasValue) {
+      final folders =
+          listing.requireValue.files.where((f) => f.isFolder).toList();
+      if (folders.isEmpty) {
+        entries.add(CloudFolderTreeEntry.empty(id: queryPath, depth: depth));
+        return;
+      }
+      for (final folder in folders) {
+        final expanded = _expandedFolders.contains(folder.path);
+        entries.add(CloudFolderTreeEntry.folder(
+          id: folder.path,
+          label: folder.name,
+          depth: depth,
+          folder: folder,
+          expanded: expanded,
+        ));
+        if (expanded) {
+          _appendFolderEntries(
+            entries,
+            ref.watch(directoryProvider(DirectoryQuery(folder.relativePath))),
+            queryPath: folder.relativePath,
+            depth: depth + 1,
+          );
+        }
+      }
+      return;
+    }
+    if (listing.hasError) {
+      entries.add(CloudFolderTreeEntry.error(id: queryPath, depth: depth));
+    } else {
+      entries.add(CloudFolderTreeEntry.loading(id: queryPath, depth: depth));
+    }
+  }
+
+  void _openFolder(CloudFolderTreeEntry entry) {
+    final folder = entry.folder;
+    if (entry.kind != CloudFolderTreeEntryKind.folder || folder == null) {
+      return;
+    }
+    widget.onNavigate(folder);
+  }
+
+  void _toggleFolder(CloudFolderTreeEntry entry) {
+    if (entry.kind != CloudFolderTreeEntryKind.folder) return;
+    setState(() {
+      if (_expandedFolders.contains(entry.id)) {
+        _expandedFolders.remove(entry.id);
+      } else {
+        _expandedFolders.add(entry.id);
+      }
+    });
+  }
+
+  void _retryFolder(CloudFolderTreeEntry entry) {
+    ref.invalidate(directoryProvider(DirectoryQuery(entry.id)));
   }
 
   /// 「与我共享」下的分享快捷方式（一级）。
@@ -395,99 +473,6 @@ class _SidebarItem extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// 多级目录树节点。
-class _FolderNode extends ConsumerStatefulWidget {
-  final FileItem folder;
-  final int depth;
-  final ValueChanged<FileItem> onNavigate;
-
-  const _FolderNode({
-    required this.folder,
-    required this.depth,
-    required this.onNavigate,
-  });
-
-  @override
-  ConsumerState<_FolderNode> createState() => _FolderNodeState();
-}
-
-class _FolderNodeState extends ConsumerState<_FolderNode> {
-  bool _expanded = false;
-
-  List<FileItem> _subfolders() {
-    final listing = ref
-        .watch(directoryProvider(DirectoryQuery(widget.folder.relativePath)))
-        .valueOrNull;
-    if (listing == null) return const [];
-    return listing.files.where((f) => f.isFolder).toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final subfolders = _expanded ? _subfolders() : const <FileItem>[];
-    final indent = widget.depth * 14;
-
-    return Column(
-      children: [
-        InkWell(
-          onTap: () => setState(() => _expanded = !_expanded),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: EdgeInsets.only(
-              left: 12.0 + indent,
-              right: 12,
-              top: 8,
-              bottom: 8,
-            ),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
-            child: Row(
-              children: [
-                Icon(
-                  _expanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
-                  size: 18,
-                  color: context.appColors.textMuted,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => widget.onNavigate(widget.folder),
-                    child: Row(
-                      children: [
-                        FileItemIcon(
-                          file: widget.folder,
-                          size: 16,
-                          color: context.appColors.textSecondary,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            widget.folder.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: context.appColors.textSecondary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (_expanded)
-          ...subfolders.map((f) => _FolderNode(
-                folder: f,
-                depth: widget.depth + 1,
-                onNavigate: widget.onNavigate,
-              )),
-      ],
     );
   }
 }
