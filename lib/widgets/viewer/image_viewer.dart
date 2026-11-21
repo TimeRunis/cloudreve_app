@@ -9,11 +9,12 @@ import '../../core/image/image_loader.dart';
 import '../../core/network/cloudreve_api.dart';
 import '../../models/file_item.dart';
 import '../../providers/api_provider.dart';
+import '../file/file_thumbnail.dart';
 import '../sheet/file_info_sheet.dart';
 import '../../core/i18n/app_localizations.dart';
 
 /// 全屏图片浏览组件：纯黑背景，居中显示，左右滑动切换，
-/// 左上角索引，右上角 X / 详情 / 下载。
+/// 左上角索引，右上角 X / 详情 / 下载，底部一条可横向滚动的缩略图长条。
 ///
 /// 图片统一走 [ImageLoader]：内存缓存 + 最多 5 张并发 + 滑走后台继续加载，
 /// 打开时预取前后各一张。
@@ -37,9 +38,30 @@ class ImageViewer extends ConsumerStatefulWidget {
 }
 
 class _ImageViewerState extends ConsumerState<ImageViewer> {
+  /// 底部缩略图边长。
+  static const double _thumbSize = 52;
+
+  /// 缩略图之间的间距。
+  static const double _thumbGap = 6;
+
+  /// 单个缩略图在横向列表里占的宽度（含间距）。
+  static const double _thumbExtent = _thumbSize + _thumbGap;
+
+  /// 缩略图列表左右留白。
+  static const double _thumbPadding = 8;
+
+  /// 缩略图长条高度（含上下留白）。
+  static const double _thumbStripHeight = _thumbSize + 20;
+
   late int _index = widget.initialIndex;
   late final PageController _controller =
       PageController(initialPage: widget.initialIndex);
+
+  /// 底部缩略图长条的水平滚动控制器。
+  late final ScrollController _thumbController;
+
+  /// 是否已经按初始索引算好缩略图长条的起始位置。
+  bool _thumbControllerReady = false;
 
   /// 分享页传入自己的 api；主页走全局 provider。
   late final CloudreveApi _api = widget.api ?? ref.read(apiProvider);
@@ -57,11 +79,31 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
   void initState() {
     super.initState();
     _prefetch(_index);
+    // 首帧布局完成后把当前图片的缩略图滚到长条中间。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centerThumbnail(_index, animate: false);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_thumbControllerReady) return;
+    _thumbControllerReady = true;
+    // 先按屏幕宽度算好居中位置，避免首帧从第一张闪到当前图片。
+    final width = MediaQuery.sizeOf(context).width;
+    final offset = _thumbPadding +
+        widget.initialIndex * _thumbExtent -
+        (width - _thumbExtent) / 2;
+    _thumbController = ScrollController(
+      initialScrollOffset: offset < 0 ? 0 : offset,
+    );
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _thumbController.dispose();
     super.dispose();
   }
 
@@ -79,6 +121,41 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
       _zoomed = false;
     });
     _prefetch(index);
+    _centerThumbnail(index);
+  }
+
+  /// 把第 [index] 张缩略图滚到长条中间；[animate] 为 false 时直接定位。
+  void _centerThumbnail(int index, {bool animate = true}) {
+    if (!_thumbController.hasClients) return;
+    final position = _thumbController.position;
+    final target = _thumbPadding +
+        index * _thumbExtent -
+        (position.viewportDimension - _thumbExtent) / 2;
+    final clamped = target.clamp(0.0, position.maxScrollExtent).toDouble();
+    if (!animate) {
+      _thumbController.jumpTo(clamped);
+      return;
+    }
+    _thumbController.animateTo(
+      clamped,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// 点击底部缩略图：切到对应图片。
+  void _selectIndex(int index) {
+    if (index == _index || !_controller.hasClients) return;
+    // 跨很多张时直接跳，避免 PageView 一路翻页造成卡顿和闪烁。
+    if ((index - _index).abs() > 3) {
+      _controller.jumpToPage(index);
+      return;
+    }
+    _controller.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _handleZoomChanged(bool zoomed) {
@@ -157,7 +234,80 @@ class _ImageViewerState extends ConsumerState<ImageViewer> {
                 ),
               ),
             ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildThumbnailStrip(),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 底部缩略图长条：横向滚动展示当前文件夹所有图片，点击可切换。
+  Widget _buildThumbnailStrip() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            Colors.black.withOpacity(0.72),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: _thumbStripHeight,
+          child: ListView.builder(
+            controller: _thumbController,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: _thumbPadding,
+              vertical: 10,
+            ),
+            itemExtent: _thumbExtent,
+            itemCount: widget.images.length,
+            itemBuilder: (context, i) {
+              final selected = i == _index;
+              return Padding(
+                padding: const EdgeInsets.only(right: _thumbGap),
+                child: GestureDetector(
+                  key: ValueKey('viewer-thumb-$i'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _selectIndex(i),
+                  child: SizedBox(
+                    width: _thumbSize,
+                    height: _thumbSize,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOut,
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: selected ? Colors.white : Colors.white24,
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: FileThumbnail(
+                          file: widget.images[i],
+                          size: _thumbSize - 4,
+                          api: widget.api,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
