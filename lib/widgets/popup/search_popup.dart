@@ -4,11 +4,16 @@ import '../../core/theme/app_colors.dart';
 import 'app_popup.dart';
 import '../../core/i18n/app_localizations.dart';
 
-/// 顶部搜索弹窗（纯组件：只把提交的搜索词通过回调传出）。
+/// 顶部搜索弹窗（纯组件：提交搜索词、打开分享历史都通过回调传出）。
 class SearchPopup extends StatefulWidget {
   final ValueChanged<String> onSubmitted;
+  final VoidCallback onShareHistory;
 
-  const SearchPopup({super.key, required this.onSubmitted});
+  const SearchPopup({
+    super.key,
+    required this.onSubmitted,
+    required this.onShareHistory,
+  });
 
   @override
   State<SearchPopup> createState() => _SearchPopupState();
@@ -46,6 +51,16 @@ class _SearchPopupState extends State<SearchPopup> {
                 ),
                 textInputAction: TextInputAction.search,
                 onSubmitted: widget.onSubmitted,
+              ),
+            ),
+            IconButton(
+              tooltip: tr('分享历史'),
+              onPressed: widget.onShareHistory,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(
+                Icons.share_outlined,
+                size: 20,
+                color: context.appColors.textSecondary,
               ),
             ),
           ],

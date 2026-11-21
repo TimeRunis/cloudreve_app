@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import '../models/share.dart';
+import '../models/share_history.dart';
 import '../models/site.dart';
 import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
@@ -14,6 +17,7 @@ import '../providers/directory_provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/file_browser_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/share_history_provider.dart';
 import '../widgets/common/error_view.dart';
 import '../widgets/common/selection_actions.dart';
 import '../widgets/common/toolbar_action_group.dart';
@@ -118,6 +122,26 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
     super.dispose();
   }
 
+  /// 记录一次成功打开的分享；同一分享重复打开时移到历史最前。
+  void _recordHistory(ShareLink info) {
+    try {
+      unawaited(
+        ref.read(shareHistoryProvider.notifier).add(
+              ShareHistoryEntry(
+                site: widget.site,
+                shareId: widget.shareId,
+                password: _password,
+                name: info.name,
+                owner: info.ownerNickname ?? info.ownerEmail,
+                openedAt: DateTime.now(),
+              ),
+            ),
+      );
+    } catch (e) {
+      debugPrint('[ShareViewerPage] 记录分享历史失败: $e');
+    }
+  }
+
   Future<void> _loadInfo() async {
     setState(() {
       _checking = true;
@@ -140,6 +164,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           _fatalError = tr('该分享链接已失效');
           setState(() {});
         } else {
+          _recordHistory(info);
           await _loadFiles();
         }
       } else {
@@ -185,6 +210,7 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
           _locked = false;
           _checking = false;
         });
+        _recordHistory(info);
         await _loadFiles();
       } else {
         setState(() {

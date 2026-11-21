@@ -8,12 +8,14 @@ import '../core/network/api_exception.dart';
 import '../core/network/cloudreve_api.dart';
 import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
+import '../models/site.dart';
 import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/directory_provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/file_browser_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/sites_provider.dart';
 import '../providers/upload_provider.dart';
 import '../widgets/common/app_bar_icon_button.dart';
 import '../widgets/common/error_view.dart';
@@ -37,6 +39,7 @@ import '../widgets/viewer/video_player_viewer.dart';
 import 'downloads_page.dart';
 import 'my_shares_page.dart';
 import 'settings_hub_page.dart';
+import 'share_history_page.dart';
 import 'share_viewer_page.dart';
 import 'trash_page.dart';
 import 'upload_queue_page.dart';
@@ -315,15 +318,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       _toast(tr('分享链接格式无法识别'));
       return;
     }
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ShareViewerPage(
-          site: site,
-          shareId: parsed.shareId,
-          password: parsed.password,
-        ),
-      ),
-    );
+    _openParsedShare(site, parsed);
   }
 
   void _openVideoPlayer(FileItem file) {
@@ -515,12 +510,49 @@ class _HomePageState extends ConsumerState<HomePage> {
     showHomeSearch(
       context,
       anchorKey: _searchKey,
-      onSubmitted: (query) {
-        final keyword = query.trim();
-        if (keyword.isEmpty) return;
-        _browseCtrl.clearSelection();
-        setState(() => _searchKeyword = keyword);
-      },
+      onSubmitted: _submitSearch,
+      onShareHistory: _openShareHistory,
+    );
+  }
+
+  void _openShareHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ShareHistoryPage()),
+    );
+  }
+
+  /// 搜索提交：优先识别分享地址，识别到就直接打开分享页。
+  void _submitSearch(String query) {
+    final text = query.trim();
+    if (text.isEmpty) return;
+
+    final current = ref.read(currentSiteProvider);
+    final sites = ref.read(sitesProvider);
+    final ordered = <Site>[
+      if (current != null) current,
+      ...sites.where((s) => s.id != current?.id),
+    ];
+    for (final site in ordered) {
+      final parsed = parseShareLinkFromText(text, site.baseUrl);
+      if (parsed != null) {
+        _openParsedShare(site, parsed);
+        return;
+      }
+    }
+
+    _browseCtrl.clearSelection();
+    setState(() => _searchKeyword = text);
+  }
+
+  void _openParsedShare(Site site, ParsedShareLink parsed) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShareViewerPage(
+          site: site,
+          shareId: parsed.shareId,
+          password: parsed.password,
+        ),
+      ),
     );
   }
 

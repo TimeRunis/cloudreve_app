@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/download_task.dart';
+import '../../models/share_history.dart';
 import '../../models/site.dart';
 import '../../models/upload_task.dart';
 import '../../models/user.dart';
@@ -21,6 +22,7 @@ class AppStorage {
   static const _kDownloadThreadCount = 'download_thread_count';
   static const _kDownloadTasks = 'download_tasks';
   static const _kUploadTasks = 'upload_tasks';
+  static const _kShareHistory = 'share_history';
   static const _kUpdateCheckInterval = 'update_check_interval';
   static const _kUpdateLastCheckAt = 'update_last_check_at';
 
@@ -128,6 +130,25 @@ class AppStorage {
 
   Future<void> saveUploadTasks(List<UploadTask> tasks) => _prefs.setString(
       _kUploadTasks, jsonEncode(tasks.map((e) => e.toJson()).toList()));
+
+  // ---------- 分享历史 ----------
+  List<ShareHistoryEntry> getShareHistory() {
+    final raw = _prefs.getString(_kShareHistory);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final data = jsonDecode(raw) as List<dynamic>;
+      return data
+          .map((e) =>
+              ShareHistoryEntry.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> saveShareHistory(List<ShareHistoryEntry> entries) =>
+      _prefs.setString(
+          _kShareHistory, jsonEncode(entries.map((e) => e.toJson()).toList()));
 
   // ---------- 令牌（安全存储） ----------
   String _tokenKey(String siteId) => 'site.$siteId.token';

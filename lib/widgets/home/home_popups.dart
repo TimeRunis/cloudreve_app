@@ -133,6 +133,7 @@ Future<void> showHomeSearch(
   BuildContext context, {
   required GlobalKey anchorKey,
   required ValueChanged<String> onSubmitted,
+  required VoidCallback onShareHistory,
 }) {
   return showAppPopup<void>(
     context: context,
@@ -142,6 +143,10 @@ Future<void> showHomeSearch(
       onSubmitted: (query) {
         Navigator.of(dialogContext).pop();
         onSubmitted(query);
+      },
+      onShareHistory: () {
+        Navigator.of(dialogContext).pop();
+        onShareHistory();
       },
     ),
   );
