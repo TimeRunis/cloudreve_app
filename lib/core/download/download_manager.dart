@@ -31,7 +31,8 @@ typedef DownloadUrlFetcher = Future<String?> Function(String uri);
 /// 全局下载队列管理器。
 ///
 /// - 任务排队与并发调度（同时最多 [maxConcurrentTasks] 个）。
-/// - 单线程断点续传；开启多线程时按 HTTP Range 分片并行下载。
+/// - 单线程断点续传；开启多线程时按 HTTP Range 分片并行下载，
+///   各分片单独落盘，暂停 / 重启后按分片偏移续传，全部完成后按顺序合并。
 /// - 任务列表持久化到本地，重启后恢复为「已暂停」，可继续下载。
 /// - 下载期间持有 wakelock，锁屏后 CPU 不休眠，避免下载被挂起。
 /// - App 回到前台时自动把因锁屏/网络中断而失败的任务重新排队。
@@ -228,8 +229,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
     final safeName = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     var candidate = '${dir.path}/$safeName';
     var index = 1;
-    while (await File(candidate).exists() ||
-        await File('$candidate.cldpart').exists()) {
+    while (await File(candidate).exists() || await _hasPartFiles(candidate)) {
       final dot = safeName.lastIndexOf('.');
       final base = dot > 0 ? safeName.substring(0, dot) : safeName;
       final ext = dot > 0 ? safeName.substring(dot) : '';
@@ -237,6 +237,15 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       index++;
     }
     return candidate;
+  }
+
+  /// 是否已有该文件名的临时文件（单线程 `.cldpart` 或多线程分段文件）。
+  Future<bool> _hasPartFiles(String savePath) async {
+    if (await File('$savePath.cldpart').exists()) return true;
+    for (var i = 0; i < 16; i++) {
+      if (await File('$savePath.cldpart.seg$i').exists()) return true;
+    }
+    return false;
   }
 
   String _absoluteUrl(String url, String base) {
@@ -438,23 +447,36 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _runMultiThread(
       DownloadTask task, _ActiveDownload active) async {
-    final part = File(task.partPath);
     final total = task.totalSize;
-    final base = await _fileSize(part);
-    active.baseBytes = base;
-    active.currentBytes = base;
     if (total <= 0) {
       // 未知大小无法分片，降级单线程。
+      _setThreadCount(task.id, 1);
       await _runSingleThread(task, active);
       return;
     }
-    if (base >= total) {
-      await part.rename(task.savePath);
-      _setStatus(task.id, DownloadStatus.completed, downloadedBytes: total);
-      return;
-    }
 
-    final segments = _buildSegments(task, base, total, task.threadCount);
+    final part = File(task.partPath);
+    // 多线程的进度只保存在分段文件里；`.cldpart` 可能是旧版本暂停时
+    // 合并出的不连续内容，继续追加会损坏文件，直接丢弃后按分段续传。
+    await _deleteIfExists(part);
+
+    final segments = _buildSegments(task, total, task.threadCount);
+    var existing = 0;
+    for (final seg in segments) {
+      final file = File(seg.partPath);
+      var have = await _fileSize(file);
+      if (have > seg.length) {
+        // 比目标分片还长的异常文件无法安全续传，重新下载该段。
+        await _deleteIfExists(file);
+        have = 0;
+      }
+      seg.downloaded = have;
+      existing += have;
+    }
+    active.currentBytes = min(existing, total);
+    active.lastTickBytes = active.currentBytes;
+    _updateTaskBytes(task.id, active.currentBytes);
+
     final state = _MultiState();
     final results = await Future.wait(segments
         .map((seg) => _downloadSegment(task, seg, segments, active, state)));
@@ -468,53 +490,85 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
     if (state.fallback) {
       // 服务器不支持 Range：清理分段后降级单线程从头下载。
       await _deleteSegments(segments);
-      if (base > 0) {
-        await _deleteIfExists(part);
+      await _deleteIfExists(part);
+      _setThreadCount(task.id, 1);
+      if (active.pauseRequested) {
+        _setStatus(task.id, DownloadStatus.paused, downloadedBytes: 0);
+        return;
       }
-      active.baseBytes = 0;
+      if (active.removed) return;
       active.currentBytes = 0;
+      active.lastTickBytes = 0;
       active.token = CancelToken();
+      if (active.pauseRequested) {
+        _setStatus(task.id, DownloadStatus.paused, downloadedBytes: 0);
+        return;
+      }
       await _runSingleThread(task, active);
       return;
     }
 
+    final downloaded = await _segmentsBytes(segments);
     if (active.token.isCancelled) {
-      await _mergeSegments(segments, part);
-      final merged = await _fileSize(part);
-      _setStatus(task.id, DownloadStatus.paused, downloadedBytes: merged);
+      // 暂停时保留各分片已下载的部分，下次按分片偏移继续，不能合并。
+      await _deleteIfExists(part);
+      _setStatus(task.id, DownloadStatus.paused,
+          downloadedBytes: min(downloaded, total));
       return;
     }
 
     final failures = _segmentFailures(segments);
     if (failures.isNotEmpty) {
-      await _mergeSegments(segments, part);
-      final merged = await _fileSize(part);
+      await _deleteIfExists(part);
       _setStatus(task.id, DownloadStatus.failed,
-          error: failures.first, downloadedBytes: merged);
+          error: failures.first, downloadedBytes: min(downloaded, total));
+      return;
+    }
+
+    if (!await _segmentsComplete(segments)) {
+      await _deleteIfExists(part);
+      _setStatus(
+        task.id,
+        DownloadStatus.failed,
+        error: tr('下载不完整（{done}/{total}）',
+            args: {'done': downloaded, 'total': total}),
+        downloadedBytes: min(downloaded, total),
+      );
+      return;
+    }
+
+    if (active.token.isCancelled) {
+      // 合并前再次确认暂停状态，避免暂停后仍生成完整文件。
+      await _deleteIfExists(part);
+      _setStatus(task.id, DownloadStatus.paused,
+          downloadedBytes: min(downloaded, total));
       return;
     }
 
     await _mergeSegments(segments, part);
     final merged = await _fileSize(part);
-    if (merged >= total) {
+    if (merged == total) {
       await part.rename(task.savePath);
-      _setStatus(task.id, DownloadStatus.completed, downloadedBytes: merged);
+      await _deleteSegments(segments);
+      _setStatus(task.id, DownloadStatus.completed, downloadedBytes: total);
     } else {
-      _setStatus(task.id, DownloadStatus.failed,
-          error: tr('下载不完整（{done}/{total}）',
-              args: {'done': merged, 'total': total}),
-          downloadedBytes: merged);
+      await _deleteIfExists(part);
+      _setStatus(
+        task.id,
+        DownloadStatus.failed,
+        error:
+            tr('下载不完整（{done}/{total}）', args: {'done': merged, 'total': total}),
+        downloadedBytes: min(downloaded, total),
+      );
     }
   }
 
-  List<_Segment> _buildSegments(
-      DownloadTask task, int start, int total, int threadCount) {
-    final remaining = total - start;
-    final count = max(1, min(threadCount, (remaining / minSegmentSize).ceil()));
-    final size = (remaining / count).ceil();
+  List<_Segment> _buildSegments(DownloadTask task, int total, int threadCount) {
+    final count = max(1, min(threadCount, (total / minSegmentSize).ceil()));
+    final size = (total / count).ceil();
     final segments = <_Segment>[];
     for (var i = 0; i < count; i++) {
-      final segStart = start + i * size;
+      final segStart = i * size;
       if (segStart >= total) break;
       final segEnd = min(total - 1, segStart + size - 1);
       segments.add(_Segment(
@@ -537,12 +591,14 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
   ) async {
     final file = File(seg.partPath);
     IOSink? sink;
+    var bytes = seg.downloaded;
     try {
+      if (bytes >= seg.length) return _SegmentResult(ok: true);
       final resp = await dio.get<ResponseBody>(
         task.url,
         options: Options(
           responseType: ResponseType.stream,
-          headers: {'Range': 'bytes=${seg.start}-${seg.end}'},
+          headers: {'Range': 'bytes=${seg.start + bytes}-${seg.end}'},
           validateStatus: (s) =>
               s != null && (s == 200 || s == 206 || s == 416),
         ),
@@ -554,20 +610,26 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
         return _SegmentResult(ok: false, cancelled: true);
       }
       if (resp.statusCode == 416) {
-        return _SegmentResult(ok: true);
+        if (bytes >= seg.length) return _SegmentResult(ok: true);
+        return _SegmentResult(
+            ok: false,
+            error: tr('分片 {index} 请求的字节范围无效', args: {'index': seg.index + 1}));
       }
       final body = resp.data;
       if (body == null) {
         return _SegmentResult(ok: false, error: tr('服务器返回空响应'));
       }
-      sink = file.openWrite(mode: FileMode.write);
-      var bytes = 0;
+      sink = file.openWrite(mode: FileMode.append);
       await for (final chunk in body.stream) {
         if (active.token.isCancelled || state.fallback) break;
-        sink.add(chunk);
-        bytes += chunk.length;
+        final remaining = seg.length - bytes;
+        if (remaining <= 0) break;
+        final data =
+            chunk.length > remaining ? chunk.sublist(0, remaining) : chunk;
+        sink.add(data);
+        bytes += data.length;
         seg.downloaded = bytes;
-        active.currentBytes = active.baseBytes +
+        active.currentBytes =
             segments.fold<int>(0, (sum, e) => sum + e.downloaded);
       }
       await sink.flush();
@@ -576,7 +638,7 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       if (active.token.isCancelled || state.fallback) {
         return _SegmentResult(ok: false, cancelled: true);
       }
-      if (bytes < seg.length) {
+      if (bytes != seg.length) {
         return _SegmentResult(
             ok: false,
             error: tr('分片 {index} 下载不完整', args: {'index': seg.index + 1}));
@@ -601,14 +663,32 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
           if (seg.failure != null) seg.failure!,
       ];
 
+  /// 所有分段文件当前占用的字节数（用于暂停 / 失败后的进度回显）。
+  Future<int> _segmentsBytes(List<_Segment> segments) async {
+    var total = 0;
+    for (final seg in segments) {
+      final length = await _fileSize(File(seg.partPath));
+      total += min(length, seg.length);
+    }
+    return total;
+  }
+
+  /// 每个分段都必须完整，合并后的文件才不会错位。
+  Future<bool> _segmentsComplete(List<_Segment> segments) async {
+    for (final seg in segments) {
+      if (await _fileSize(File(seg.partPath)) != seg.length) return false;
+    }
+    return true;
+  }
+
+  /// 按分段顺序合并成 `.cldpart`；分段文件保留，校验通过后再删。
   Future<void> _mergeSegments(List<_Segment> segments, File part) async {
-    final sink = part.openWrite(mode: FileMode.append);
+    final sink = part.openWrite(mode: FileMode.write);
     try {
       for (final seg in segments) {
         final file = File(seg.partPath);
-        if (!await file.exists()) break;
+        if (!await file.exists()) continue;
         await sink.addStream(file.openRead());
-        await file.delete();
       }
     } finally {
       await sink.close();
@@ -638,7 +718,10 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     final active = _active[id];
-    if (active != null) active.cancel();
+    if (active != null) {
+      active.pauseRequested = true;
+      active.cancel();
+    }
   }
 
   Future<void> resume(String id) async {
@@ -670,7 +753,11 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> pauseAll() async {
     for (final t in List<DownloadTask>.of(_tasks)) {
       if (t.status == DownloadStatus.downloading) {
-        _active[t.id]?.cancel();
+        final active = _active[t.id];
+        if (active != null) {
+          active.pauseRequested = true;
+          active.cancel();
+        }
       } else if (t.status == DownloadStatus.waiting) {
         _setStatus(t.id, DownloadStatus.paused);
       }
@@ -753,6 +840,16 @@ class DownloadManager extends ChangeNotifier with WidgetsBindingObserver {
     if (index < 0) return;
     _tasks[index] = _tasks[index].copyWith(downloadedBytes: bytes);
     notifyListeners();
+  }
+
+  /// 服务器不支持 Range 时，把这个任务固定为单线程，后续续传仍用单线程。
+  void _setThreadCount(String id, int count) {
+    final index = _tasks.indexWhere((t) => t.id == id);
+    if (index < 0) return;
+    if (_tasks[index].threadCount == count) return;
+    _tasks[index] = _tasks[index].copyWith(threadCount: count);
+    notifyListeners();
+    _persistSoon();
   }
 
   void _onTick() {
@@ -878,9 +975,9 @@ class _ActiveDownload {
 
   CancelToken token = CancelToken();
   bool removed = false;
+  bool pauseRequested = false;
   int currentBytes = 0;
   int lastTickBytes = 0;
-  int baseBytes = 0;
 
   _ActiveDownload(this.taskId);
 
