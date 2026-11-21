@@ -90,32 +90,64 @@ class UpdateService {
     }
   }
 
-  /// Atom 源没有安装包信息：按命名约定探测体积（同时确认文件存在）。
+  /// Atom 源没有安装包信息：按命名约定探测 APK / IPA（同时确认文件存在）。
+  ///
+  /// APK 探测失败时仍按约定给出地址（兼容部分不支持 HEAD 的网络环境）；
+  /// IPA 探测失败时保持为 null，确保 iOS 不会把「没有 IPA 的发布」当成
+  /// 可下载更新，而是引导用户打开发布页。
   Future<AppRelease> _resolveAsset(AppRelease release) async {
-    if (release.downloadUrl != null) return release;
-    final candidates = _assetNameCandidates(release.tag);
-    for (final name in candidates) {
-      final url = _assetUrl(release.tag, name);
-      final size = await _probeSize(url);
-      if (size != null) {
-        return release.copyWith(downloadUrl: url, size: size);
+    var result = release;
+    if (result.downloadUrl == null) {
+      final candidates = _apkAssetNameCandidates(result.tag);
+      for (final name in candidates) {
+        final url = _assetUrl(result.tag, name);
+        final size = await _probeSize(url);
+        if (size != null) {
+          result = result.copyWith(downloadUrl: url, size: size);
+          break;
+        }
+      }
+      if (result.downloadUrl == null) {
+        result = result.copyWith(
+          downloadUrl: _assetUrl(result.tag, candidates.first),
+        );
       }
     }
-    // 探测失败（部分网络环境不支持 HEAD）时仍按约定给出安装包地址，
-    // 保证手动检查和启动检查都能走应用内下载；真下载失败会提示打开发布页。
-    return release.copyWith(
-      downloadUrl: _assetUrl(release.tag, candidates.first),
-    );
+
+    if (result.ipaUrl == null) {
+      for (final name in _ipaAssetNameCandidates(result.tag)) {
+        final url = _assetUrl(result.tag, name);
+        final size = await _probeSize(url);
+        if (size != null) {
+          result = result.copyWith(ipaUrl: url, ipaSize: size);
+          break;
+        }
+      }
+    }
+    return result;
   }
 
   String _assetUrl(String tag, String name) =>
       'https://github.com/$repo/releases/download/'
       '${Uri.encodeComponent(tag)}/$name';
 
-  List<String> _assetNameCandidates(String tag) {
+  List<String> _apkAssetNameCandidates(String tag) {
     final names = <String>['cloudreve-$tag.apk'];
     if (tag.startsWith('v') || tag.startsWith('V')) {
       names.add('cloudreve-${tag.substring(1)}.apk');
+    }
+    return names;
+  }
+
+  List<String> _ipaAssetNameCandidates(String tag) {
+    final names = <String>[
+      'cloudreve-$tag-unsigned.ipa',
+      'cloudreve-$tag.ipa',
+    ];
+    if (tag.startsWith('v') || tag.startsWith('V')) {
+      final bare = tag.substring(1);
+      names.add('cloudreve-$bare-unsigned.ipa');
+      names.add('cloudreve-$bare.ipa');
     }
     return names;
   }
@@ -167,6 +199,13 @@ class UpdateService {
         downloadUrl = asset['browser_download_url'] as String?;
         size = (asset['size'] as num?)?.toInt();
       }
+      String? ipaUrl;
+      int? ipaSize;
+      final ipa = _pickIpaAsset(item['assets'], version);
+      if (ipa != null) {
+        ipaUrl = ipa['browser_download_url'] as String?;
+        ipaSize = (ipa['size'] as num?)?.toInt();
+      }
 
       final rawTitle = (item['name'] as String? ?? '').trim();
       releases.add(AppRelease(
@@ -178,6 +217,8 @@ class UpdateService {
             'https://github.com/$defaultRepo/releases/tag/$tag',
         downloadUrl: downloadUrl,
         size: size,
+        ipaUrl: ipaUrl,
+        ipaSize: ipaSize,
         publishedAt:
             DateTime.tryParse(item['published_at'] as String? ?? '')?.toLocal(),
         isPrerelease: item['prerelease'] == true || version.isPrerelease,
@@ -196,6 +237,27 @@ class UpdateService {
       if (asset is! Map) continue;
       final name = (asset['name'] as String? ?? '').toLowerCase();
       if (!name.endsWith('.apk')) continue;
+      final url = asset['browser_download_url'] as String?;
+      if (url == null || url.isEmpty) continue;
+      fallback ??= asset;
+      if (name.contains(versionText)) {
+        matched = asset;
+        break;
+      }
+    }
+    return matched ?? fallback;
+  }
+
+  /// 从资产列表里挑 IPA：优先文件名带版本号的（约定 `cloudreve-<版本>-unsigned.ipa`）。
+  static Map? _pickIpaAsset(dynamic assets, AppVersion version) {
+    if (assets is! List) return null;
+    Map? fallback;
+    Map? matched;
+    final versionText = version.raw.toLowerCase();
+    for (final asset in assets) {
+      if (asset is! Map) continue;
+      final name = (asset['name'] as String? ?? '').toLowerCase();
+      if (!name.endsWith('.ipa')) continue;
       final url = asset['browser_download_url'] as String?;
       if (url == null || url.isEmpty) continue;
       fallback ??= asset;

@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 /// 语义化版本（SemVer 2.0）。
 ///
 /// 既用于解析已安装应用的 `versionName`（例如 `1.0.0-beta.2`），也用于
@@ -125,11 +127,17 @@ class AppRelease {
   /// 发布页地址。
   final String pageUrl;
 
-  /// APK 直链；解析不到资产时为 null（此时只能打开发布页）。
+  /// Android APK 直链；解析不到资产时为 null（此时只能打开发布页）。
   final String? downloadUrl;
 
   /// APK 大小（字节），未知为 null。
   final int? size;
+
+  /// iOS IPA 直链；发布里没有 IPA 时为 null。
+  final String? ipaUrl;
+
+  /// IPA 大小（字节），未知为 null。
+  final int? ipaSize;
 
   final DateTime? publishedAt;
 
@@ -144,6 +152,8 @@ class AppRelease {
     required this.pageUrl,
     this.downloadUrl,
     this.size,
+    this.ipaUrl,
+    this.ipaSize,
     this.publishedAt,
     this.isPrerelease = false,
   });
@@ -151,9 +161,23 @@ class AppRelease {
   /// 展示用版本号（`versionName` 风格，不带前缀 v）。
   String get versionLabel => version.raw;
 
-  /// 资产文件名，例如 `cloudreve-1.0.0-beta.3.apk`。
+  bool get isIOS => defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// 当前平台是否有可下载的安装包。
+  bool get hasPlatformPackage {
+    final url = platformDownloadUrl;
+    return url != null && url.isNotEmpty;
+  }
+
+  /// 当前平台对应的安装包直链。
+  String? get platformDownloadUrl => isIOS ? ipaUrl : downloadUrl;
+
+  /// 当前平台对应的安装包大小。
+  int? get platformSize => isIOS ? ipaSize : size;
+
+  /// 当前平台安装包文件名。
   String? get assetName {
-    final url = downloadUrl;
+    final url = platformDownloadUrl;
     if (url == null || url.isEmpty) return null;
     final segments = Uri.tryParse(url)?.pathSegments ?? const <String>[];
     if (segments.isEmpty) return null;
@@ -168,6 +192,8 @@ class AppRelease {
     String? pageUrl,
     String? downloadUrl,
     int? size,
+    String? ipaUrl,
+    int? ipaSize,
     DateTime? publishedAt,
     bool? isPrerelease,
   }) =>
@@ -179,10 +205,12 @@ class AppRelease {
         pageUrl: pageUrl ?? this.pageUrl,
         downloadUrl: downloadUrl ?? this.downloadUrl,
         size: size ?? this.size,
+        ipaUrl: ipaUrl ?? this.ipaUrl,
+        ipaSize: ipaSize ?? this.ipaSize,
         publishedAt: publishedAt ?? this.publishedAt,
         isPrerelease: isPrerelease ?? this.isPrerelease,
       );
 
   @override
-  String toString() => 'AppRelease($tag, apk: $downloadUrl)';
+  String toString() => 'AppRelease($tag, apk: $downloadUrl, ipa: $ipaUrl)';
 }

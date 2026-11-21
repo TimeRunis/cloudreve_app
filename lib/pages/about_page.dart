@@ -22,6 +22,9 @@ class _AboutPageState extends State<AboutPage> {
   static const String repoLabel = 'github.com/TimeRunis/cloudreve_app';
   static const String issuesUrl = '$repoUrl/issues';
 
+  /// iOS 的 CFBundleShortVersionString 是纯数字，完整版本由构建参数注入。
+  static const String _envVersion = String.fromEnvironment('APP_VERSION');
+
   PackageInfo? _info;
 
   @override
@@ -36,7 +39,8 @@ class _AboutPageState extends State<AboutPage> {
     final info = _info;
     if (info == null) return l10n.t('读取中…');
     final build = info.buildNumber;
-    return build.isEmpty ? info.version : '${info.version} ($build)';
+    final version = _envVersion.isNotEmpty ? _envVersion : info.version;
+    return build.isEmpty ? version : '$version ($build)';
   }
 
   @override

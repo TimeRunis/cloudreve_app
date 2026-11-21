@@ -45,7 +45,22 @@ jobs:
         run: flutter pub get
 
       - name: Build unsigned iOS app
-        run: flutter build ios --release --no-codesign
+        run: |
+          set -euo pipefail
+
+          VERSION="$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)"
+          BUILD_NUMBER="$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f2)"
+          if [ -z "$BUILD_NUMBER" ]; then
+            BUILD_NUMBER=1
+          fi
+          # CFBundleShortVersionString 只接受数字和点，不能带 -beta.x；
+          # 完整版本号通过 dart-define 注入，供应用内更新比较和展示。
+          IOS_VERSION="${VERSION%%-*}"
+
+          flutter build ios --release --no-codesign \
+            --build-name="$IOS_VERSION" \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=APP_VERSION="$VERSION"
 
       - name: Package IPA
         id: package

@@ -461,6 +461,10 @@ class AppLocalizations {
     // 更新
     '发现新版本': 'New version available',
     '新版本已下载': 'New version downloaded',
+    'iOS 安装包已下载': 'iOS package downloaded',
+    'iOS 安装包下载完成，是否打开？': 'iOS package downloaded. Open it?',
+    'Cloudreve {version} iOS 安装包下载完成，是否打开？':
+        'Cloudreve {version} iOS package downloaded. Open it?',
     '更新内容': "What's new",
     '当前': 'Current',
     '最新': 'Latest',

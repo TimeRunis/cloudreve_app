@@ -99,6 +99,10 @@ class UpdateNotifier extends Notifier<UpdateState> {
   /// 本次运行已经弹过窗的版本，避免同一版本反复打扰。
   final Set<String> _promptedTags = {};
 
+  /// 构建时注入的完整版本号（iOS 的 CFBundleShortVersionString 必须是纯数字，
+  /// 因此 iOS 构建把 `1.0.0-beta.5` 通过 --dart-define 传进来用于更新比较）。
+  static const String _envVersion = String.fromEnvironment('APP_VERSION');
+
   /// 已安装版本缓存。
   AppVersion _installed = const AppVersion(
     major: 0,
@@ -199,6 +203,11 @@ class UpdateNotifier extends Notifier<UpdateState> {
   }
 
   Future<AppVersion> _loadInstalledVersion() async {
+    final injected = AppVersion.tryParse(_envVersion);
+    if (injected != null) {
+      _installed = injected;
+      return _installed;
+    }
     try {
       final info = await PackageInfo.fromPlatform();
       final parsed = AppVersion.tryParse(info.version);
@@ -221,10 +230,12 @@ class UpdateNotifier extends Notifier<UpdateState> {
   ///
   /// 已经在队列里（或已下载完）的同一个包会直接复用，不会重复下载。
   Future<DownloadTask?> download(AppRelease release) async {
-    final url = release.downloadUrl;
+    final url = release.platformDownloadUrl;
     if (url == null || url.isEmpty) return null;
     final manager = ref.read(downloadManagerProvider).manager;
-    final name = release.assetName ?? 'cloudreve-${release.version.raw}.apk';
+    final extension = release.isIOS ? 'ipa' : 'apk';
+    final name =
+        release.assetName ?? 'cloudreve-${release.version.raw}.$extension';
 
     DownloadTask? existing;
     for (final task in manager.tasks) {
@@ -249,7 +260,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
         uri: '',
         name: name,
         url: url,
-        size: release.size ?? 0,
+        size: release.platformSize ?? 0,
       );
       state = state.copyWith(taskId: task.id);
       AppLogger.log.i('[Update] 更新包已加入下载队列：${task.savePath}');

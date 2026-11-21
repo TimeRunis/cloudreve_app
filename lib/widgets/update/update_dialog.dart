@@ -46,6 +46,7 @@ Future<bool> showUpdateReadyDialog(
     builder: (dialogContext) {
       final colors = dialogContext.appColors;
       final primary = Theme.of(dialogContext).colorScheme.primary;
+      final isIpa = fileName.toLowerCase().endsWith('.ipa');
       return _DialogShell(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -60,7 +61,7 @@ Future<bool> showUpdateReadyDialog(
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    tr('新版本已下载'),
+                    isIpa ? tr('iOS 安装包已下载') : tr('新版本已下载'),
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
@@ -73,9 +74,12 @@ Future<bool> showUpdateReadyDialog(
             const SizedBox(height: 14),
             Text(
               version == null
-                  ? tr('安装包下载完成，是否立即安装？')
-                  : tr('Cloudreve {version} 安装包下载完成，是否立即安装？',
-                      args: {'version': version}),
+                  ? (isIpa ? tr('iOS 安装包下载完成，是否打开？') : tr('安装包下载完成，是否立即安装？'))
+                  : (isIpa
+                      ? tr('Cloudreve {version} iOS 安装包下载完成，是否打开？',
+                          args: {'version': version})
+                      : tr('Cloudreve {version} 安装包下载完成，是否立即安装？',
+                          args: {'version': version})),
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
@@ -93,7 +97,7 @@ Future<bool> showUpdateReadyDialog(
               child: Row(
                 children: [
                   Icon(
-                    Icons.android,
+                    isIpa ? Icons.phone_iphone : Icons.android,
                     size: 16,
                     color: colors.textMuted,
                   ),
@@ -121,7 +125,7 @@ Future<bool> showUpdateReadyDialog(
                 FilledButton(
                   style: FilledButton.styleFrom(backgroundColor: primary),
                   onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: Text(tr('立即安装')),
+                  child: Text(isIpa ? tr('打开文件') : tr('立即安装')),
                 ),
               ],
             ),
@@ -140,8 +144,7 @@ class _UpdateDialog extends StatelessWidget {
 
   const _UpdateDialog({required this.release, required this.currentVersion});
 
-  bool get _canDownload =>
-      release.downloadUrl != null && release.downloadUrl!.isNotEmpty;
+  bool get _canDownload => release.hasPlatformPackage;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +153,8 @@ class _UpdateDialog extends StatelessWidget {
     final published = release.publishedAt == null
         ? ''
         : formatDateTime(release.publishedAt).split(' ').first;
-    final size = release.size == null ? '' : formatSize(release.size!);
+    final size =
+        release.platformSize == null ? '' : formatSize(release.platformSize!);
     final meta = [published, size].where((e) => e.isNotEmpty).join(' · ');
 
     return _DialogShell(
