@@ -62,7 +62,8 @@ enum AppPopupPlacement { below, above, left, right }
 /// 以 [anchorKey] 对应的控件为锚点弹出悬浮窗，点击空白处关闭。
 ///
 /// - [placement] 指定相对锚点的方向（上/下/左/右），默认在下方；
-/// - 首选方向放不下时自动换到对侧或其它方向；
+/// - 首选方向放不下时自动换到对侧或其它方向；[autoFlip] 为 false 时
+///   始终保持首选方向（空间不足由边界夹紧处理）；
 /// - 无论落在哪个方向，最终都会被夹回屏幕内，不会溢出；
 /// - [offset] 在定位结果上再平移一段距离（例如侧边栏要贴到屏幕左上角）；
 /// - [transitionBuilder] 可替换默认的淡入缩放动画（例如侧边栏用左滑）；
@@ -74,6 +75,7 @@ Future<T?> showAppPopup<T>({
   AppPopupPlacement placement = AppPopupPlacement.below,
   double gap = 6,
   Offset offset = Offset.zero,
+  bool autoFlip = true,
   bool barrierDismissible = true,
   Color barrierColor = Colors.transparent,
   RouteTransitionsBuilder? transitionBuilder,
@@ -118,6 +120,7 @@ Future<T?> showAppPopup<T>({
                   gap: gap,
                   placement: placement,
                   offset: offset,
+                  autoFlip: autoFlip,
                 ),
                 child: builder(dialogContext),
               ),
@@ -146,12 +149,16 @@ class _AnchorPopupLayout extends SingleChildLayoutDelegate {
     required this.anchorRect,
     required this.gap,
     required this.placement,
+    required this.autoFlip,
     this.offset = Offset.zero,
   });
 
   final Rect anchorRect;
   final double gap;
   final AppPopupPlacement placement;
+
+  /// 是否允许放不下时切换到其它方向。
+  final bool autoFlip;
 
   /// 在最终位置上追加的平移量（仍会经过屏幕边界夹紧）。
   final Offset offset;
@@ -206,7 +213,7 @@ class _AnchorPopupLayout extends SingleChildLayoutDelegate {
     }
 
     var chosen = placement;
-    if (!fits(placement)) {
+    if (autoFlip && !fits(placement)) {
       if (fits(opposite)) {
         chosen = opposite;
       } else {
@@ -266,5 +273,6 @@ class _AnchorPopupLayout extends SingleChildLayoutDelegate {
       anchorRect != oldDelegate.anchorRect ||
       gap != oldDelegate.gap ||
       placement != oldDelegate.placement ||
+      autoFlip != oldDelegate.autoFlip ||
       offset != oldDelegate.offset;
 }

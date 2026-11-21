@@ -37,6 +37,9 @@ Future<void> showHomeSidebar(
     gap: 8,
     // 侧边栏是特殊面板：贴回屏幕左上角（左侧 16，顶部状态栏下 16）。
     offset: const Offset(8, -48),
+    // 「与我共享」展开会改变面板高度；始终从左侧展开，避免自动改为
+    // 从右侧弹出导致左边距跳动。
+    autoFlip: false,
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       final offset = Tween<Offset>(
         begin: const Offset(-0.2, 0),
