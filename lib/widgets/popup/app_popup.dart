@@ -2,23 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 
-/// 悬浮窗宽度：窄屏（< 600）屏幕 75%、宽屏（600–999）40%、
-/// 超宽屏（≥ 1000）30%，任何情况下都不超过屏幕宽度。
+/// 通用悬浮窗默认最大宽度（菜单 / 面板不再按屏幕档位强制取宽）。
 ///
-/// 所有悬浮窗（菜单 / 面板 / 侧边栏）统一按这个档位取宽。
-double appPopupWidth(double screenWidth) {
-  if (screenWidth >= 1000) return screenWidth * 0.30;
-  if (screenWidth >= 600) return screenWidth * 0.40;
-  return screenWidth * 0.75;
-}
+/// 宽度由内容决定，最多到 [defaultAppPopupWidth]；只有侧边栏保留
+/// 「窄屏 75% / 宽屏 40% / 超宽屏 30%」的宽度档位。
+const double defaultAppPopupWidth = 240;
 
 /// 通用悬浮窗容器。
 ///
-/// 统一圆角、阴影、背景色、裁剪与宽度档位。所有弹出菜单 / 面板都套这一层，
-/// 保证不同页面弹出来的窗口是同一套外观与尺寸。
+/// 统一圆角、阴影、背景色与裁剪。所有弹出菜单 / 面板都套这一层，
+/// 保证不同页面弹出来的窗口是同一套外观。
 ///
-/// 宽度默认取 [appPopupWidth] 的档位值（窄屏 75% / 宽屏 40% / 超宽屏 30%），
-/// 个别悬浮窗确实需要特殊宽度时传 [width] 自定义；无论哪种都不会超过屏幕宽度。
+/// 默认宽度由内容决定，最大不超过 [defaultAppPopupWidth]；个别悬浮窗
+/// 需要固定 / 特殊宽度时传 [width]；任何情况下都不会超过屏幕宽度。
 class AppPopup extends StatelessWidget {
   final Widget child;
 
@@ -27,7 +23,7 @@ class AppPopup extends StatelessWidget {
   /// 阴影高度，默认与既有菜单一致（8）。
   final double elevation;
 
-  /// 自定义宽度；为空时按屏幕档位取宽（推荐保持为空，统一外观）。
+  /// 自定义固定宽度；为空时宽度由内容决定（最大 [defaultAppPopupWidth]）。
   final double? width;
 
   const AppPopup({
@@ -41,17 +37,20 @@ class AppPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final popupWidth =
-        (width ?? appPopupWidth(screenWidth)).clamp(0.0, screenWidth);
-    return SizedBox(
-      width: popupWidth,
-      child: Material(
-        color: context.appColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        elevation: elevation,
-        clipBehavior: Clip.antiAlias,
-        child: Padding(padding: padding, child: child),
-      ),
+    final maxWidth = (width ?? defaultAppPopupWidth).clamp(0.0, screenWidth);
+    final content = Material(
+      color: context.appColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      elevation: elevation,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: padding, child: child),
+    );
+    if (width != null) {
+      return SizedBox(width: maxWidth, child: content);
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: content,
     );
   }
 }

@@ -12,6 +12,9 @@ class ApiException implements Exception {
   /// 2FA 需要二次验证时返回的业务码。
   static const int twoFactorRequired = 203;
 
+  /// 目标对象已存在（创建同名文件 / 快捷方式时返回）。
+  static const int objectExists = 40004;
+
   bool get isTwoFactor => code == twoFactorRequired;
 
   @override

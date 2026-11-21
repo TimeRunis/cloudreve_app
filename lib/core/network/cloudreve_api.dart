@@ -409,6 +409,33 @@ class CloudreveApi {
     return DirectoryListing.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 在「我的文件」根目录创建分享快捷方式。
+  ///
+  /// Cloudreve 用一个带 `sys:shared_redirect` 元数据的符号文件夹表示快捷方式；
+  /// `sys:shared_owner` 用于在文件图标上显示分享者头像。
+  Future<FileItem> createShareShortcut({
+    required String name,
+    required String redirectUri,
+    String? ownerId,
+    bool isFolder = true,
+  }) async {
+    final cleanName = name.trim();
+    final data = await _post('file/create', data: {
+      'uri': 'cloudreve://my/${Uri.encodeComponent(cleanName)}',
+      'type': isFolder ? 'folder' : 'file',
+      'metadata': {
+        'sys:shared_redirect': redirectUri,
+        if (ownerId != null && ownerId.trim().isNotEmpty)
+          'sys:shared_owner': ownerId.trim(),
+      },
+      'err_on_conflict': true,
+    });
+    if (data is Map) {
+      return FileItem.fromJson(data.cast<String, dynamic>());
+    }
+    throw const ApiException(-1, '');
+  }
+
   /// 获取缩略图直链；返回 data.url，失败返回 null。
   Future<String?> getThumbnailUrl(String uri, {int? width, int? height}) async {
     final data = await _get('file/thumb', queryParameters: {

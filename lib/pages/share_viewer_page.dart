@@ -8,8 +8,12 @@ import '../core/theme/app_colors.dart';
 import '../models/file_item.dart';
 import '../models/share.dart';
 import '../models/site.dart';
+import '../providers/api_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/directory_provider.dart';
 import '../providers/download_provider.dart';
 import '../providers/file_browser_provider.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/common/error_view.dart';
 import '../widgets/common/selection_actions.dart';
 import '../widgets/common/toolbar_action_group.dart';
@@ -19,6 +23,7 @@ import '../widgets/file_browser/file_browser_view.dart';
 import '../widgets/navigation/breadcrumb.dart';
 import '../widgets/popup/app_popup.dart';
 import '../widgets/popup/file_operations_popup.dart';
+import '../widgets/popup/popup_item.dart';
 import '../widgets/popup/sort_popup.dart';
 import '../widgets/share/share_password_view.dart';
 import '../widgets/sheet/file_info_sheet.dart';
@@ -75,6 +80,12 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
 
   /// 工具栏「排序」按钮，作为排序菜单的锚点。
   final GlobalKey _sortButtonKey = GlobalKey();
+
+  /// 工具栏「更多」按钮，作为更多菜单的锚点。
+  final GlobalKey _moreButtonKey = GlobalKey();
+
+  /// 是否正在保存分享快捷方式。
+  bool _savingShortcut = false;
 
   /// 多选时「更多操作」按钮，作为操作菜单的锚点。
   final GlobalKey _selectionMoreKey = GlobalKey();
@@ -259,6 +270,111 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
         _loadFiles();
       },
     );
+  }
+
+  /// 分享页「更多」菜单：刷新、保存快捷方式与选择操作。
+  Future<void> _openMoreMenu() async {
+    await showAppPopup<void>(
+      context: context,
+      anchorKey: _moreButtonKey,
+      builder: (popupContext) {
+        void run(VoidCallback action) {
+          Navigator.of(popupContext).pop();
+          action();
+        }
+
+        return AppPopup(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PopupItem(
+                icon: Icons.refresh,
+                label: tr('刷新'),
+                onTap: () => run(_refresh),
+              ),
+              PopupItem(
+                icon: Icons.bookmark_add_outlined,
+                label: tr('保存分享为快捷方式'),
+                onTap: () => run(_saveShareShortcut),
+              ),
+              Divider(height: 1, color: context.appColors.border),
+              PopupItem(
+                icon: Icons.select_all,
+                label: tr('全选'),
+                onTap: () => run(() => _browseCtrl.selectAll(_files)),
+              ),
+              PopupItem(
+                icon: Icons.deselect,
+                label: tr('取消选择'),
+                onTap: () => run(_clearSelection),
+              ),
+              PopupItem(
+                icon: Icons.flip_to_back,
+                label: tr('反选'),
+                onTap: () => run(() => _browseCtrl.invertSelection(_files)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 把当前分享保存为「我的文件」里的快捷方式。
+  Future<void> _saveShareShortcut() async {
+    if (_savingShortcut) return;
+    final info = _info;
+    if (info == null) return;
+
+    final site = ref.read(currentSiteProvider);
+    final auth = ref.read(authProvider);
+    if (site == null || !auth.isLoggedIn) {
+      _toast(tr('请先登录后再保存分享'));
+      return;
+    }
+    if (site.id != widget.site.id) {
+      _toast(tr('只能保存当前站点的分享'));
+      return;
+    }
+
+    final api = ref.read(apiProvider);
+    final redirect = shareRootUri(widget.shareId, password: _password);
+    final baseName = info.name.trim().isEmpty ? tr('分享') : info.name.trim();
+    setState(() => _savingShortcut = true);
+    try {
+      var saved = false;
+      for (var i = 0; i < 20 && !saved; i++) {
+        final name = i == 0 ? baseName : '$baseName ($i)';
+        try {
+          await api.createShareShortcut(
+            name: name,
+            redirectUri: redirect,
+            ownerId: info.ownerId,
+            isFolder: info.isFolder,
+          );
+          saved = true;
+        } on ApiException catch (e) {
+          // 同名快捷方式已存在时自动追加序号重试。
+          if ((e.code == ApiException.objectExists || e.code == 409) &&
+              i < 19) {
+            continue;
+          }
+          rethrow;
+        }
+      }
+      if (!mounted) return;
+      ref.invalidate(sharedWithMeProvider);
+      ref.invalidate(directoryProvider(const DirectoryQuery('/')));
+      _toast(tr('已保存到「我的文件」'));
+    } catch (e) {
+      if (!mounted) return;
+      final message = e is ApiException ? e.message : '$e';
+      _toast(tr('保存失败：{error}', args: {'error': message}));
+    } finally {
+      if (mounted) setState(() => _savingShortcut = false);
+    }
   }
 
   void _enter(FileItem folder) {
@@ -508,9 +624,10 @@ class _ShareViewerPageState extends ConsumerState<ShareViewerPage> {
                 onTap: _openSortMenu,
               ),
               ToolbarActionItem(
-                icon: Icons.refresh,
-                tooltip: tr('刷新'),
-                onTap: _refresh,
+                key: _moreButtonKey,
+                icon: Icons.more_horiz,
+                tooltip: tr('更多'),
+                onTap: _openMoreMenu,
               ),
             ],
           ),

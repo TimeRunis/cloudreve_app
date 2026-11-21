@@ -17,6 +17,9 @@ class ShareLink {
   final String? ownerNickname;
   final String? ownerEmail;
 
+  /// 分享创建者 ID；保存为快捷方式时写入 `sys:shared_owner`，用于头像角标。
+  final String? ownerId;
+
   const ShareLink({
     required this.id,
     required this.name,
@@ -34,6 +37,7 @@ class ShareLink {
     this.shareView,
     this.ownerNickname,
     this.ownerEmail,
+    this.ownerId,
   });
 
   bool get isFolder => sourceType == 1;
@@ -58,6 +62,9 @@ class ShareLink {
             : null,
         ownerEmail: json['owner'] is Map
             ? (json['owner'] as Map)['email'] as String?
+            : null,
+        ownerId: json['owner'] is Map
+            ? (json['owner'] as Map)['id'] as String?
             : null,
       );
 }

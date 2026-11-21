@@ -88,7 +88,7 @@ class _SidebarPanelState extends ConsumerState<SidebarPanel> {
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: SizedBox(
-        // 宽度分三档：窄屏 75%、宽屏 50%、超宽屏 30%。
+        // 宽度分三档：窄屏 75%、宽屏 40%、超宽屏 30%。
         width: screen.width * _widthRatio(screen.width),
         child: Material(
           color: context.appColors.surface,
