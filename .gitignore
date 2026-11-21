@@ -54,3 +54,5 @@ app.*.map.json
 android/key.properties
 # 本地打包产物
 /dist/
+# 测试代码仅本地使用，不纳入版本管理
+/test/
